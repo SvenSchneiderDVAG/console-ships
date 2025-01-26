@@ -427,7 +427,7 @@ parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok:
 		vertical := input[len(input)-1] == 'v'
 
 		ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
-		return x, y, vertical, ok
+		return x, y, vertical, ok,
 	}
 }
 
@@ -532,9 +532,6 @@ main :: proc() {
 				}
 				place_player_ships(&game, &game.player.my_board)
 			case .TurnPlayer:
-				// clear_console()
-				// fmt.println("Player's turn\n\n")
-				// display_board("Player's Target Board", &game.player.target_board)
 				if !process_player_shot(&game, &game.player.target_board) {
 					game.state = .TurnComputer
 				}
