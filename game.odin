@@ -46,10 +46,16 @@ Player :: struct {
 }
 
 LastHit :: struct {
-	x:       int,
-	y:       int,
-	direction: enum {None, North, East, South, West},
-	has_hit: bool,
+	x:         int,
+	y:         int,
+	direction: enum {
+		None,
+		North,
+		East,
+		South,
+		West,
+	},
+	has_hit:   bool,
 }
 
 Game :: struct {
@@ -145,9 +151,9 @@ game_init :: proc(game: ^Game) {
 	game.player.turns = 0
 	game.computer.turns = 0
 	game.last_hit = LastHit {
-		x       = 0,
-		y       = 0,
-		has_hit = false,
+		x         = 0,
+		y         = 0,
+		has_hit   = false,
 		direction = .None,
 	}
 
@@ -284,7 +290,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	fmt.println("\nComputer's turn\n")
 
 	if !game.last_hit.has_hit {
-	// Random targetting
+		// Random targetting
 
 		x := rand.int_max(GRID_SIZE)
 		y := rand.int_max(GRID_SIZE)
@@ -297,7 +303,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		// Computer's turn - attack player's board while hitting
 		hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 
-		if board.cells[y][x] == "P" || hit {
+		if hit {
 			// if hit {
 			board.cells[y][x] = "X"
 			game.last_hit = LastHit {
@@ -331,16 +337,20 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		// Check if ship is vertical or horizontal
 		if game.last_hit.direction == .None {
 			// Try only one direction per turn
-			if y > 0 && board.cells[y-1][x] != "X" && board.cells[y-1][x] != "o" {
+			if y > 0 && board.cells[y - 1][x] != "X" && board.cells[y - 1][x] != "o" {
 				game.last_hit.direction = .North
 				y -= 1
-			} else if y < GRID_SIZE-1 && board.cells[y+1][x] != "X" && board.cells[y+1][x] != "o" {
+			} else if y < GRID_SIZE - 1 &&
+			   board.cells[y + 1][x] != "X" &&
+			   board.cells[y + 1][x] != "o" {
 				game.last_hit.direction = .South
 				y += 1
-			} else if x > 0 && board.cells[y][x-1] != "X" && board.cells[y][x-1] != "o" {
+			} else if x > 0 && board.cells[y][x - 1] != "X" && board.cells[y][x - 1] != "o" {
 				game.last_hit.direction = .West
 				x -= 1
-			} else if x < GRID_SIZE-1 && board.cells[y][x+1] != "X" && board.cells[y][x+1] != "o" {
+			} else if x < GRID_SIZE - 1 &&
+			   board.cells[y][x + 1] != "X" &&
+			   board.cells[y][x + 1] != "o" {
 				game.last_hit.direction = .East
 				x += 1
 			} else {
@@ -349,57 +359,74 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 				return process_computer_shot(game, board)
 			}
 		}
-
-		if board.cells[y][x] == "P" {
-			board.cells[y][x] = "X"
-			game.last_hit = LastHit {
-				x       = x,
-				y       = y,
-				has_hit = true,
+		{
+			hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+			if hit {
+				board.cells[y][x] = "X"
+				game.last_hit = LastHit {
+					x       = x,
+					y       = y,
+					has_hit = true,
+				}
+				clear_console()
+				display_board("Player's Board", &game.player.my_board)
+				fmt.printf("\nComputer hit at %c%d\n", x + 'A', y + 1)
+				game.computer.turns += 1
+				if sunk {
+					fmt.println("Player's Ship sunk!\n")
+					game.last_hit.has_hit = false
+				}
+				return true
+			} else {
+				board.cells[y][x] = "o"
+				clear_console()
+				display_board("Player's Board", &game.player.my_board)
+				fmt.println("\nComputer misses...\n")
+				game.last_hit.has_hit = false
+				game.computer.turns += 1
+				return false
 			}
-			clear_console()
-			display_board("Player's Board", &game.player.my_board)
-			fmt.printf("\nComputer hit at %c%d\n", x + 'A', y + 1)
-			game.computer.turns += 1
-			return true
-		} else {
-			board.cells[y][x] = "o"
-			clear_console()
-			display_board("Player's Board", &game.player.my_board)
-			fmt.println("\nComputer misses...\n")
-			game.last_hit.has_hit = false
-			game.computer.turns += 1
-			return false
+
+			// Check if ship is vertical or horizontal
+			if game.last_hit.direction == .North {
+				y -= 1
+			} else if game.last_hit.direction == .South {
+				y += 1
+			} else if game.last_hit.direction == .West {
+				x -= 1
+			} else if game.last_hit.direction == .East {
+				x += 1
+			}
 		}
 
-		// Check if ship is vertical or horizontal
-		if game.last_hit.direction == .North {
-			y -= 1
-		} else if game.last_hit.direction == .South {
-			y += 1
-		} else if game.last_hit.direction == .West {
-			x -= 1
-		} else if game.last_hit.direction == .East {
-			x += 1
-		}
-
-		if board.cells[y][x] == "P" {
-			board.cells[y][x] = "X"
-			game.last_hit = LastHit{x = x, y = y, has_hit = true}
-			clear_console()
-			display_board("Player's Board", &game.player.my_board)
-			fmt.printf("\nComputer hit at %c%d\n", x+'A', y+1)
-			game.computer.turns += 1
-			return true
-		} else {
-			board.cells[y][x] = "o"
-			clear_console()
-			display_board("Player's Board", &game.player.my_board)
-			fmt.println("\nComputer misses...\n")
-			game.last_hit.has_hit = false
-			game.computer.turns += 1
-			game.state = .TurnPlayer
-			return false
+		{
+			hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+			if hit {
+				board.cells[y][x] = "X"
+				game.last_hit = LastHit {
+					x       = x,
+					y       = y,
+					has_hit = true,
+				}
+				clear_console()
+				display_board("Player's Board", &game.player.my_board)
+				fmt.printf("\nComputer hit at %c%d\n", x + 'A', y + 1)
+				game.computer.turns += 1
+				if sunk {
+					fmt.println("Player's Ship sunk!\n")
+					game.last_hit.has_hit = false
+				}
+				return true
+			} else {
+				board.cells[y][x] = "o"
+				clear_console()
+				display_board("Player's Board", &game.player.my_board)
+				fmt.println("\nComputer misses...\n")
+				game.last_hit.has_hit = false
+				game.computer.turns += 1
+				game.state = .TurnPlayer
+				return false
+			}
 		}
 	}
 }
