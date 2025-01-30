@@ -45,17 +45,22 @@ Player :: struct {
 	turns:        int,
 }
 
+Direction :: enum {
+	None,
+	North,
+	East,
+	South,
+	West,
+}
+
 LastHit :: struct {
-	x:         int,
-	y:         int,
-	direction: enum {
-		None,
-		North,
-		East,
-		South,
-		West,
-	},
-	has_hit:   bool,
+	x:                int,
+	y:                int,
+	first_x, first_y: int,
+	direction:        Direction,
+	vertical:         bool,
+	horizontal:       bool,
+	has_hit:          bool,
 }
 
 Game :: struct {
@@ -147,15 +152,22 @@ game_init :: proc(game: ^Game) {
 	make_board(&game.player.target_board)
 	make_board(&game.computer.my_board)
 
-	game.state = .PlaceShips
 	game.player.turns = 0
 	game.computer.turns = 0
+	game.last_hit = {}
 	game.last_hit = LastHit {
-		x         = 0,
-		y         = 0,
-		has_hit   = false,
 		direction = .None,
 	}
+	game.state = .PlaceShips
+
+	// game.last_hit = LastHit {
+	// 	x         = 0,
+	// 	y         = 0,
+	// 	first_x   = 0,
+	// 	first_y   = 0,
+	// 	has_hit   = false,
+	// 	direction = .None,
+	// }
 
 	clear_console()
 	fmt.println("Welcome to Terminal-Battleships\n\n")
@@ -199,9 +211,21 @@ display_board :: proc(title: string, board: ^Board) {
 
 is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bool {
 	//Check bounds
-	if y + size > GRID_SIZE || x + size > GRID_SIZE {
-		debug_print("Ship is out of bounds\n")
+	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+		debug_print("Initial coordinates out of bounds\n")
 		return false
+	}
+
+	if vertical {
+		if y + size > GRID_SIZE {
+			debug_print("Ship is out of bounds\n")
+			return false
+		}
+	} else {
+		if x + size > GRID_SIZE {
+			debug_print("Ship is out of bounds\n")
+			return false
+		}
 	}
 
 	for i in -1 ..= size {
@@ -211,8 +235,7 @@ is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bo
 
 			// skip if outside board
 			if check_x < 0 || check_x >= GRID_SIZE || check_y < 0 || check_y >= GRID_SIZE {
-				debug_print("Coords outside board.\n")
-				return false
+				continue
 			}
 			// if close to another ship
 			if board.cells[check_y][check_x] == "C" || board.cells[check_y][check_x] == "P" {
@@ -226,37 +249,56 @@ is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bo
 
 process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	// clear_console()
-	fmt.println("\nPlayer's turn\n")
+	// display_board("Player's Board", &game.player.my_board)
+	// fmt.println("Player's turn\n")
 	display_board("Player's Target Board", &game.player.target_board)
 
 	// Get player input
 	buf: [256]byte
-
 	fmt.print("Enter coordinates to attack (e.g. A1, C7): ")
 	num_bytes, _ := os.read(os.stdin, buf[:])
 	defer os.flush(os.stdin)
-	input := string(buf[:num_bytes])
-	input = strings.to_lower(strings.trim_right(input, "\r\n"))
+	input := strings.to_lower(strings.trim_right(string(buf[:num_bytes]), "\r\n"))
 
 	if input == "q" {
 		return restart_or_quit(game)
 	}
 
-	if input == "" || len(input) < 2 || len(input) > 4 {
-		fmt.println("\nInvalid input. Try again\n")
+	if input == "show" {
+		display_board("Computer's Board", &game.computer.my_board)
 		return true
 	}
 
-	x := int(input[0]) - 'a'
-	y_str := input[1:]
-	y := strconv.atoi(y_str) - 1 // decrement by 1 because of 0-based indexing
-
-	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE || y >= 11 {
-		fmt.println("\nInvalid input: out of bounds! Try again.\n")
+	if len(input) < 2 || len(input) > 4 {
+		fmt.println("\nInvalid input. Try again\n")
 		time.sleep(1 * time.Second)
 		clear_console()
 		return true
 	}
+
+	x := int(input[0] - 'a')
+	if x < 0 || x >= GRID_SIZE {
+		fmt.println("\nInvalid column. Use A-J")
+		time.sleep(1 * time.Second)
+		clear_console()
+		return true
+	}
+
+	y_str := input[1:]
+	y := strconv.atoi(y_str)
+	y -= 1 // decrement by 1 because of 0-based indexing
+
+	if y < 0 || y >= GRID_SIZE {
+		fmt.println("\nInvalid row. Use 1-10")
+		time.sleep(1 * time.Second)
+		clear_console()
+		return true
+	}
+
+	// Add debug prints
+	debug_print("Shooting at: %c%d\n", x + 'A', y + 1)
+	debug_print("Computer board at this position: %s\n", game.computer.my_board.cells[y][x])
+
 
 	if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
 		fmt.println("\nYou've already attacked this field. Try again.\n")
@@ -265,17 +307,21 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		return true
 	}
 
-	hit, sunk := check_ship_hit(board, game.computer.ships[:], x, y)
+	hit, sunk, invalid := check_ship_hit(&game.computer.my_board, game.computer.ships[:], x, y)
 
 	if hit {
 		board.cells[y][x] = "X"
 		fmt.println("\nBOOM!!! Hit!\n")
 		if sunk {
 			fmt.println("Computer's ship sunk!\n")
+			time.sleep(2 * time.Second)
 		}
 		game.player.turns += 1
 		time.sleep(1 * time.Second)
 		clear_console()
+		display_board("Player's Board", &game.player.my_board)
+		// display_board("Player's Board", &game.player.my_board)
+
 		return true
 	} else {
 		board.cells[y][x] = "o"
@@ -285,150 +331,176 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 }
 
+is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
+	switch game.last_hit.direction {
+	case .None:
+		return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+	case .North:
+		return y > 0 && y < GRID_SIZE && x >= 0 && x < GRID_SIZE
+	case .South:
+		return y >= 0 && y < GRID_SIZE - 1 && x >= 0 && x < GRID_SIZE
+	case .West:
+		return x > 0 && y >= 0 && y < GRID_SIZE
+	case .East:
+		return x >= 0 && x < GRID_SIZE - 1 && y >= 0 && y < GRID_SIZE
+	}
+	return false
+}
+
+has_cell_been_shot :: proc(board: ^Board, x, y: int) -> bool {
+	// First check bounds
+	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+		return true // Treat out-of-bounds as "shot" to prevent access
+	}
+
+	// Check for hits (X) or misses (o)
+	cell := board.cells[y][x]
+	return cell == "X" || cell == "o"
+}
+
+process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
+	debug_print("Computer is random targetting...\n")
+	tmp_x := rand.int_max(GRID_SIZE)
+	tmp_y := rand.int_max(GRID_SIZE)
+
+	// if already shot, try again
+	if has_cell_been_shot(board, tmp_x, tmp_y) {
+		return process_random_shot(board)
+	}
+	return tmp_x, tmp_y
+}
+
+
 process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
-	fmt.println("\nComputer's turn\n")
+	// fmt.println("Computer's turn\n")
 
 	if !game.last_hit.has_hit {
-		// Random targetting
-
-		x := rand.int_max(GRID_SIZE)
-		y := rand.int_max(GRID_SIZE)
-
-		// Skip if already tried
-		if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
-			return true
-		}
-
-		// Computer's turn - attack player's board while hitting
-		hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+		// Random shot until hit
+		x, y := process_random_shot(board)
+		hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 
 		if hit {
-			// if hit {
 			board.cells[y][x] = "X"
 			game.last_hit = LastHit {
-				x       = x,
-				y       = y,
-				has_hit = true,
+				x         = x,
+				y         = y,
+				first_x   = x,
+				first_y   = y,
+				has_hit   = true,
+				direction = .None,
 			}
-			game.computer.turns += 1
-			// clear_console()
 			display_board("Player's Board", &game.player.my_board)
 			fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
 			if sunk {
-				fmt.println("Player's Ship sunk!\n")
-				game.last_hit.has_hit = false
+				fmt.println("Ship sunk!")
+				time.sleep(1 * time.Second)
+				game.last_hit = LastHit{}
 			}
+			time.sleep(1 * time.Second)
 			return true
-		} else {
-			board.cells[y][x] = "o"
-			// clear_console()
-			display_board("Player's Board", &game.player.my_board)
-			fmt.println("\nComputer misses...\n")
-			game.last_hit.has_hit = false
-			game.computer.turns += 1
-			return false
+		}
+		board.cells[y][x] = "o"
+		display_board("Player's Board", &game.player.my_board)
+		fmt.printf("Computer missed at %c%d\n\n", x + 'A', y + 1)
+		return false
+	}
+
+	// Smart targeting mode
+	x := game.last_hit.x
+	y := game.last_hit.y
+
+	// Try new direction if none set
+	if game.last_hit.direction == .None {
+		directions := []Direction{.East, .West, .South, .North}
+		offsets := [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+
+		for dir, i in directions {
+			new_x := x + offsets[i][0]
+			new_y := y + offsets[i][1]
+
+			if !has_cell_been_shot(board, new_x, new_y) && is_in_bounds(new_x, new_y, game) {
+				x = new_x
+				y = new_y
+				game.last_hit.direction = dir
+				break
+			}
 		}
 	} else {
-		// Smart targetting
-		x := game.last_hit.x
-		y := game.last_hit.y
-
-		// Check if ship is vertical or horizontal
-		if game.last_hit.direction == .None {
-			// Try only one direction per turn
-			if y > 0 && board.cells[y - 1][x] != "X" && board.cells[y - 1][x] != "o" {
-				game.last_hit.direction = .North
-				y -= 1
-			} else if y < GRID_SIZE - 1 &&
-			   board.cells[y + 1][x] != "X" &&
-			   board.cells[y + 1][x] != "o" {
-				game.last_hit.direction = .South
-				y += 1
-			} else if x > 0 && board.cells[y][x - 1] != "X" && board.cells[y][x - 1] != "o" {
-				game.last_hit.direction = .West
-				x -= 1
-			} else if x < GRID_SIZE - 1 &&
-			   board.cells[y][x + 1] != "X" &&
-			   board.cells[y][x + 1] != "o" {
-				game.last_hit.direction = .East
-				x += 1
-			} else {
-				// No valid direction found, reset to random
-				game.last_hit.has_hit = false
-				return process_computer_shot(game, board)
-			}
-		}
-		{
-			hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
-			if hit {
-				board.cells[y][x] = "X"
-				game.last_hit = LastHit {
-					x       = x,
-					y       = y,
-					has_hit = true,
-				}
-				clear_console()
-				display_board("Player's Board", &game.player.my_board)
-				fmt.printf("\nComputer hit at %c%d\n", x + 'A', y + 1)
-				game.computer.turns += 1
-				if sunk {
-					fmt.println("Player's Ship sunk!\n")
-					game.last_hit.has_hit = false
-				}
-				return true
-			} else {
-				board.cells[y][x] = "o"
-				clear_console()
-				display_board("Player's Board", &game.player.my_board)
-				fmt.println("\nComputer misses...\n")
-				game.last_hit.has_hit = false
-				game.computer.turns += 1
-				return false
-			}
-
-			// Check if ship is vertical or horizontal
-			if game.last_hit.direction == .North {
-				y -= 1
-			} else if game.last_hit.direction == .South {
-				y += 1
-			} else if game.last_hit.direction == .West {
-				x -= 1
-			} else if game.last_hit.direction == .East {
-				x += 1
-			}
-		}
-
-		{
-			hit, sunk := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
-			if hit {
-				board.cells[y][x] = "X"
-				game.last_hit = LastHit {
-					x       = x,
-					y       = y,
-					has_hit = true,
-				}
-				clear_console()
-				display_board("Player's Board", &game.player.my_board)
-				fmt.printf("\nComputer hit at %c%d\n", x + 'A', y + 1)
-				game.computer.turns += 1
-				if sunk {
-					fmt.println("Player's Ship sunk!\n")
-					game.last_hit.has_hit = false
-				}
-				return true
-			} else {
-				board.cells[y][x] = "o"
-				clear_console()
-				display_board("Player's Board", &game.player.my_board)
-				fmt.println("\nComputer misses...\n")
-				game.last_hit.has_hit = false
-				game.computer.turns += 1
-				game.state = .TurnPlayer
-				return false
-			}
+		// Continue in current direction
+		#partial switch game.last_hit.direction {
+		case .East:
+			x += 1
+		case .West:
+			x -= 1
+		case .South:
+			y += 1
+		case .North:
+			y -= 1
 		}
 	}
+
+	// Check bounds and previous shots
+	if !is_in_bounds(x, y, game) || has_cell_been_shot(board, x, y) {
+		// Return to first hit and try new direction
+		game.last_hit.x = game.last_hit.first_x
+		game.last_hit.y = game.last_hit.first_y
+
+		// Rotate direction
+		#partial switch game.last_hit.direction {
+		case .East:
+			game.last_hit.direction = .South
+		case .West:
+			game.last_hit.direction = .North
+		case .South:
+			game.last_hit.direction = .West
+		case .North:
+			game.last_hit.direction = .East
+		}
+
+		board.cells[y][x] = "o" // Mark as miss
+		return false // End turn instead of retrying
+		// return true // Try again next turn
+	}
+
+	// Process shot
+	hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+	if hit {
+		board.cells[y][x] = "X"
+		game.last_hit.x = x
+		game.last_hit.y = y
+		display_board("Player's Board", &game.player.my_board)
+		fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
+		if sunk {
+			fmt.println("Ship sunk!")
+			time.sleep(1 * time.Second)
+			game.last_hit = LastHit{}
+		}
+		time.sleep(1 * time.Second)
+		return true
+	}
+
+	board.cells[y][x] = "o"
+	display_board("Player's Board", &game.player.my_board)
+	fmt.printf("\nComputer missed at %c%d\n", x + 'A', y + 1)
+
+	// Return to first hit for next attempt
+	game.last_hit.x = game.last_hit.first_x
+	game.last_hit.y = game.last_hit.first_y
+
+	// Change direction after miss
+	#partial switch game.last_hit.direction {
+	case .East:
+		game.last_hit.direction = .West
+	case .West:
+		game.last_hit.direction = .South
+	case .South:
+		game.last_hit.direction = .North
+	case .North:
+		game.last_hit.direction = .None
+	}
+
+	return false
 }
 
 place_ships :: proc(game: ^Game, board: ^Board, is_computer: bool) {
@@ -465,7 +537,7 @@ place_ships :: proc(game: ^Game, board: ^Board, is_computer: bool) {
 	who := is_computer ? "Computer" : "Player"
 	debug_print("\n%s placed ships in %v \n\n", who, delta)
 	if who == "Player" {
-		time.sleep(1 * time.Second)
+		time.sleep(2 * time.Second)
 		clear_console()
 		display_board("Your Board", &game.player.my_board)
 	}
@@ -478,30 +550,33 @@ parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok:
 
 	{
 		// convert letters to x and y to coordinates
-		x := int(input[0]) - 'a'
+		x := int(input[0] - 'a')
+		if x < 0 || x >= GRID_SIZE {
+			return 0, 0, false, false
+		}
 
 		y_str := input[1:len(input) - 1]
 		y = strconv.atoi(y_str) - 1
 
-		if y < 0 || y >= GRID_SIZE || y >= 10 {
+		if y < 0 || y >= GRID_SIZE {
 			return 0, 0, false, false
 		}
 
 		vertical := input[len(input) - 1] == 'v'
-		ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
-		return x, y, vertical, ok
+		// ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+		return x, y, vertical, true
 	}
 }
 
 place_player_ships :: proc(game: ^Game, board: ^Board) {
 	buf: [256]byte
 
-	for ship in game.player.ships {
+	for &ship in game.player.ships {
 		placed := false
 		for !placed {
 			clear_console()
 			display_board("Your Board", board)
-			fmt.printf("\nPlacing %v (size %d)\n\n", ship.name, ship.size)
+			fmt.printf("Placing %v (size %d)\n\n", ship.name, ship.size)
 			fmt.print(
 				"Enter Start coordinates (e.g. a1v or f3h) where v is ",
 				"vertical and h is horizontal: ",
@@ -524,9 +599,22 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 
 			x, y, vertical, ok := parse_coordinates(input)
 
-			if !ok {
+			if !ok || x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
 				fmt.println("\nInvalid placement! Try again.\n")
-				continue // TODO: check if this is correct
+				time.sleep(1 * time.Second)
+				continue
+			}
+
+			// Check ship bounds before placement
+			if vertical && y + ship.size > GRID_SIZE {
+				fmt.println("\nShip would go off board! Try again.\n")
+				time.sleep(1 * time.Second)
+				continue
+			}
+			if !vertical && x + ship.size > GRID_SIZE {
+				fmt.println("\nShip would go off board! Try again.\n")
+				time.sleep(1 * time.Second)
+				continue
 			}
 
 			if is_valid_placement(board, x, y, ship.size, vertical) {
@@ -534,36 +622,63 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 				if vertical {
 					for i in 0 ..< ship.size {
 						board.cells[y + i][x] = "P"
+						append(&ship.position, Vec2{x, y + i})
 					}
 				} else {
 					for i in 0 ..< ship.size {
 						board.cells[y][x + i] = "P"
+						append(&ship.position, Vec2{x + i, y})
 					}
 				}
-				placed = true
 				clear_console()
 				display_board("Your Board", &game.player.my_board)
+				placed = true
 			} else {
 				fmt.println("\nInvalid placement! Try again.\n")
+				time.sleep(1 * time.Second)
+				continue
 			}
 		}
 	}
 	fmt.println("\nAll ships have been placed - let the Battle begin!\n\n")
+	time.sleep(2 * time.Second)
 	game.state = .TurnPlayer
 }
 
-check_ship_hit :: proc(board: ^Board, ships: []Ship, x, y: int) -> (hit: bool, sunk: bool) {
-	for &ship in ships {
-		for pos in ship.position {
-			if pos.x == x && pos.y == y {
-				ship.hits += 1
-				ship.sunk = ship.hits >= ship.size
-				debug_print("\nHit on %v! Hits: %d/%d\n", ship.name, ship.hits, ship.size)
-				return true, ship.sunk
+check_ship_hit :: proc(
+	board: ^Board,
+	ships: []Ship,
+	x, y: int,
+) -> (
+	hit: bool,
+	sunk: bool,
+	invalid: bool,
+) {
+	debug_print("Checking hit at %c%d\n", x + 'A', y + 1)
+	if !is_valid_shot(board, x, y) {
+		debug_print("Invalid Shot%c%d\n", x + 'A', y + 1)
+		return false, false, true
+	}
+	if board.cells[y][x] == "C" || board.cells[y][x] == "P" {
+		debug_print("C or P at %c%d\n", x + 'A', y + 1)
+		for &ship in ships {
+			for pos in ship.position {
+				if pos.x == x && pos.y == y {
+					ship.hits += 1
+					ship.sunk = ship.hits >= ship.size
+					debug_print(
+						"\nHit confirmed on %v! Ship hits: %d/%d\n",
+						ship.name,
+						ship.hits,
+						ship.size,
+					)
+					return true, ship.sunk, false
+				}
 			}
 		}
 	}
-	return false, false
+	debug_print("Shot missed at %c%d\n", x + 'A', y + 1)
+	return false, false, false
 }
 
 is_valid_shot :: proc(board: ^Board, x, y: int) -> bool {
@@ -648,7 +763,7 @@ main :: proc() {
 			check_win_condition(&game, &game.player.target_board)
 		case .TurnComputer:
 			clear_console()
-			fmt.println("Computer's turn\n")
+			// fmt.println("Computer's turn\n\n")
 			display_board("Player's Board", &game.player.my_board)
 			if !process_computer_shot(&game, &game.player.my_board) {
 				game.state = .TurnPlayer
