@@ -91,33 +91,6 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 }
 
-is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
-	switch game.last_hit.direction {
-	case .None:
-		return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
-	case .North:
-		return y > 0 && y < GRID_SIZE && x >= 0 && x < GRID_SIZE
-	case .South:
-		return y >= 0 && y < GRID_SIZE - 1 && x >= 0 && x < GRID_SIZE
-	case .West:
-		return x > 0 && y >= 0 && y < GRID_SIZE
-	case .East:
-		return x >= 0 && x < GRID_SIZE - 1 && y >= 0 && y < GRID_SIZE
-	}
-	return false
-}
-
-has_cell_been_shot :: proc(board: ^Board, x, y: int) -> bool {
-	// First check bounds
-	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
-		return true // Treat out-of-bounds as "shot" to prevent access
-	}
-
-	// Check for hits (X) or misses (o)
-	cell := board.cells[y][x]
-	return cell == "X" || cell == "o"
-}
-
 process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
 	debug_print("Computer is random targetting...\n")
 	tmp_x := rand.int_max(GRID_SIZE)
@@ -133,6 +106,7 @@ process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
 
 process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
+	// display_board("Player's Board", &game.player.my_board)
 	// fmt.println("Computer's turn\n")
 
 	if !game.last_hit.has_hit {
@@ -150,6 +124,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 				has_hit   = true,
 				direction = .None,
 			}
+
 			display_board("Player's Board", &game.player.my_board)
 			fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
 			if sunk {
@@ -242,7 +217,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	board.cells[y][x] = "o"
 	display_board("Player's Board", &game.player.my_board)
-	fmt.printf("\nComputer missed at %c%d\n", x + 'A', y + 1)
+	fmt.printf("Computer missed at %c%d\n\n", x + 'A', y + 1)
 
 	// Return to first hit for next attempt
 	game.last_hit.x = game.last_hit.first_x
@@ -261,6 +236,33 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	return false
+}
+
+is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
+	switch game.last_hit.direction {
+	case .None:
+		return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+	case .North:
+		return y > 0 && y < GRID_SIZE && x >= 0 && x < GRID_SIZE
+	case .South:
+		return y >= 0 && y < GRID_SIZE - 1 && x >= 0 && x < GRID_SIZE
+	case .West:
+		return x > 0 && y >= 0 && y < GRID_SIZE
+	case .East:
+		return x >= 0 && x < GRID_SIZE - 1 && y >= 0 && y < GRID_SIZE
+	}
+	return false
+}
+
+has_cell_been_shot :: proc(board: ^Board, x, y: int) -> bool {
+	// First check bounds
+	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+		return true // Treat out-of-bounds as "shot" to prevent access
+	}
+
+	// Check for hits (X) or misses (o)
+	cell := board.cells[y][x]
+	return cell == "X" || cell == "o"
 }
 
 parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok: bool) {
