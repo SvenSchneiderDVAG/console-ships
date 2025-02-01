@@ -116,7 +116,7 @@ place_ships :: proc(game: ^Game, board: ^Board, is_computer: bool) {
 	if who == "Player" {
 		time.sleep(2 * time.Second)
 		clear_console()
-		display_board("Your Board", &game.player.my_board)
+		// display_board("Your Board", &game.player.my_board)
 	}
 }
 

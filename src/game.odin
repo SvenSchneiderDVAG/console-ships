@@ -22,7 +22,6 @@ main :: proc() {
 			}
 			check_win_condition(&game, &game.player.target_board)
 		case .TurnComputer:
-			clear_console()
 			// fmt.println("Computer's turn\n\n")
 			display_board("Player's Board", &game.player.my_board)
 			if !process_computer_shot(&game, &game.player.my_board) {

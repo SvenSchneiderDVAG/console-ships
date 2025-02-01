@@ -7,15 +7,29 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
+INVALID_INPUT :: "\nInvalid input. Try again\n"
+INVALID_COLUMN :: "\nInvalid column. Use A-J\n"
+INVALID_ROW :: "\nInvalid row. Use 1-10\n"
+
+INPUT_ATTACK :: "Enter coordinates to attack (e.g. A1, C7): "
+ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again\n"
+PLAYER_HIT :: "\nBOOM!!! You hit a ship!\n"
+COMPUTER_HIT :: "\nBOOM!!! Computer hit at %c%d\n"
+PLAYER_SHIP_SUNK :: "\nOne of your Ships sunk!\n"
+COMPUTER_SHIP_SUNK :: "\nComputer's ship sunk!\n"
+PLAYER_MISS :: "\nMiss...it's Computer's turn\n"
+COMPUTER_MISS :: "\nComputer missed at %c%d ...\n"
+
 process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
-	// clear_console()
-	// display_board("Player's Board", &game.player.my_board)
+	clear_console()
+	display_board("Player's Board", &game.player.my_board)
 	// fmt.println("Player's turn\n")
+	// display_board("Player's Board", &game.player.my_board)
 	display_board("Player's Target Board", &game.player.target_board)
 
 	// Get player input
 	buf: [256]byte
-	fmt.print("Enter coordinates to attack (e.g. A1, C7): ")
+	fmt.print(INPUT_ATTACK)
 	num_bytes, _ := os.read(os.stdin, buf[:])
 	defer os.flush(os.stdin)
 	input := strings.to_lower(strings.trim_right(string(buf[:num_bytes]), "\r\n"))
@@ -24,13 +38,17 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		return restart_or_quit(game)
 	}
 
-	if input == "show" {
-		display_board("Computer's Board", &game.computer.my_board)
-		return true
+	when ODIN_DEBUG {
+		if input == "show" {
+			fmt.println()
+			display_board("Computer's Board", &game.computer.my_board)
+			time.sleep(3 * time.Second)
+			return true
+		}
 	}
 
 	if len(input) < 2 || len(input) > 4 {
-		fmt.println("\nInvalid input. Try again\n")
+		fmt.println(INVALID_INPUT)
 		time.sleep(1 * time.Second)
 		clear_console()
 		return true
@@ -38,9 +56,9 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	x := int(input[0] - 'a')
 	if x < 0 || x >= GRID_SIZE {
-		fmt.println("\nInvalid column. Use A-J")
+		fmt.println(INVALID_COLUMN)
 		time.sleep(1 * time.Second)
-		clear_console()
+		// clear_console()
 		return true
 	}
 
@@ -49,9 +67,9 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	y -= 1 // decrement by 1 because of 0-based indexing
 
 	if y < 0 || y >= GRID_SIZE {
-		fmt.println("\nInvalid row. Use 1-10")
+		fmt.println(INVALID_ROW)
 		time.sleep(1 * time.Second)
-		clear_console()
+		// clear_console()
 		return true
 	}
 
@@ -61,9 +79,9 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 
 	if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
-		fmt.println("\nYou've already attacked this field. Try again.\n")
+		fmt.println(ALREADY_ATTACKED)
 		time.sleep(1 * time.Second)
-		clear_console()
+		// clear_console()
 		return true
 	}
 
@@ -71,21 +89,22 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	if hit {
 		board.cells[y][x] = "X"
-		fmt.println("\nBOOM!!! Hit!\n")
+		fmt.println(PLAYER_HIT)
 		if sunk {
-			fmt.println("Computer's ship sunk!\n")
-			time.sleep(2 * time.Second)
+			fmt.println(COMPUTER_SHIP_SUNK)
+			time.sleep(1 * time.Second)
 		}
 		game.player.turns += 1
 		time.sleep(1 * time.Second)
-		clear_console()
-		display_board("Player's Board", &game.player.my_board)
+		// clear_console()
+		// display_board("Player's Board", &game.player.my_board)
 		// display_board("Player's Board", &game.player.my_board)
 
 		return true
 	} else {
 		board.cells[y][x] = "o"
-		fmt.println("\nMiss...it's Computer's turn\n")
+		fmt.println(PLAYER_MISS)
+		time.sleep(2 * time.Second)
 		game.player.turns += 1
 		return false
 	}
@@ -97,7 +116,7 @@ process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
 	tmp_y := rand.int_max(GRID_SIZE)
 
 	// if already shot, try again
-	if has_cell_been_shot(board, tmp_x, tmp_y) {
+	if !is_valid_shot(board, tmp_x, tmp_y) {
 		return process_random_shot(board)
 	}
 	return tmp_x, tmp_y
@@ -106,13 +125,17 @@ process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
 
 process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
-	// display_board("Player's Board", &game.player.my_board)
+	display_board("Player's Board", &game.player.my_board)
+	display_board("Player's Target Board", &game.player.target_board)
 	// fmt.println("Computer's turn\n")
 
 	if !game.last_hit.has_hit {
 		// Random shot until hit
 		x, y := process_random_shot(board)
 		hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+		if invalid {
+			return true
+		}
 
 		if hit {
 			board.cells[y][x] = "X"
@@ -125,10 +148,10 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 				direction = .None,
 			}
 
-			display_board("Player's Board", &game.player.my_board)
-			fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
+			// display_board("Player's Board", &game.player.my_board)
+			fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 			if sunk {
-				fmt.println("Ship sunk!")
+				fmt.println(PLAYER_SHIP_SUNK)
 				time.sleep(1 * time.Second)
 				game.last_hit = LastHit{}
 			}
@@ -136,8 +159,9 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			return true
 		}
 		board.cells[y][x] = "o"
-		display_board("Player's Board", &game.player.my_board)
-		fmt.printf("Computer missed at %c%d\n\n", x + 'A', y + 1)
+		// display_board("Player's Board", &game.player.my_board)
+		fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
+		time.sleep(1 * time.Second)
 		return false
 	}
 
@@ -154,7 +178,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			new_x := x + offsets[i][0]
 			new_y := y + offsets[i][1]
 
-			if !has_cell_been_shot(board, new_x, new_y) && is_in_bounds(new_x, new_y, game) {
+			if is_valid_shot(board, new_x, new_y) && is_in_bounds(new_x, new_y, game) {
 				x = new_x
 				y = new_y
 				game.last_hit.direction = dir
@@ -176,7 +200,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	// Check bounds and previous shots
-	if !is_in_bounds(x, y, game) || has_cell_been_shot(board, x, y) {
+	if !is_in_bounds(x, y, game) || !is_valid_shot(board, x, y) {
 		// Return to first hit and try new direction
 		game.last_hit.x = game.last_hit.first_x
 		game.last_hit.y = game.last_hit.first_y
@@ -200,11 +224,15 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	// Process shot
 	hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+	if invalid {
+		return true
+	}
+
 	if hit {
 		board.cells[y][x] = "X"
 		game.last_hit.x = x
 		game.last_hit.y = y
-		display_board("Player's Board", &game.player.my_board)
+		// display_board("Player's Board", &game.player.my_board)
 		fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
 		if sunk {
 			fmt.println("Ship sunk!")
@@ -216,8 +244,8 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	board.cells[y][x] = "o"
-	display_board("Player's Board", &game.player.my_board)
-	fmt.printf("Computer missed at %c%d\n\n", x + 'A', y + 1)
+	// display_board("Player's Board", &game.player.my_board)
+	fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
 
 	// Return to first hit for next attempt
 	game.last_hit.x = game.last_hit.first_x
@@ -234,7 +262,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	case .North:
 		game.last_hit.direction = .None
 	}
-
+	time.sleep(1 * time.Second)
 	return false
 }
 
@@ -285,8 +313,8 @@ parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok:
 		}
 
 		vertical := input[len(input) - 1] == 'v'
-		// ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
-		return x, y, vertical, true
+		ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+		return x, y, vertical, ok
 	}
 }
 
@@ -327,6 +355,7 @@ check_ship_hit :: proc(
 }
 
 is_valid_shot :: proc(board: ^Board, x, y: int) -> bool {
+	// if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
 		return false
 	} else if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
