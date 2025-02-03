@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "type": "cppvsdbg",
+      "request": "launch",
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/console-ships.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": true
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "executableName",
+      "description": "Console-Ships"
+    }
+  ]
+}
