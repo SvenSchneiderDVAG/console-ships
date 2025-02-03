@@ -3,3 +3,6 @@ ols.json
 console-ships.exe
 console-ships.pdb
 console-ships.rdi
+console-ships.dSYM/Contents/Info.plist
+console-ships.dSYM/Contents/Resources/Relocations/aarch64/console-ships.yml
+bin/game
