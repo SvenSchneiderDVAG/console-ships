@@ -233,7 +233,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		game.last_hit.x = x
 		game.last_hit.y = y
 		// display_board("Player's Board", &game.player.my_board)
-		fmt.printf("\nBOOM!!! Computer hit at %c%d\n", x + 'A', y + 1)
+		fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 		if sunk {
 			fmt.println("Ship sunk!")
 			time.sleep(1 * time.Second)
