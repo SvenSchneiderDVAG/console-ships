@@ -2,6 +2,11 @@ package main
 
 import "core:fmt"
 
+PLACE_SHIPS_MSG :: "\nPlace your ships on the board\n"
+GAME_OVER_MSG   :: "\nGame Over\n"
+WIN_MSG 		:: "\nCongratulations! %s wins in %d turns!\n"
+
+
 main :: proc() {
 	game: Game
 	game.state = .Init
@@ -14,7 +19,7 @@ main :: proc() {
 			when ODIN_DEBUG {
 				display_board("Computer's Board", &game.computer.my_board)
 			}
-			fmt.println("Place your ships\n")
+			fmt.println(PLACE_SHIPS_MSG)
 			place_player_ships(&game, &game.player.my_board)
 		case .TurnPlayer:
 			if !process_player_shot(&game, &game.player.target_board) {
@@ -29,7 +34,7 @@ main :: proc() {
 			}
 			check_win_condition(&game, &game.player.my_board)
 		case .GameOver:
-			fmt.println("\nGame over!\n")
+			fmt.println(GAME_OVER_MSG)
 			game.state = .Restart
 		case .Restart:
 			if !restart_or_quit(&game) {
@@ -41,10 +46,10 @@ main :: proc() {
 		case .Init:
 			game_init(&game)
 		case .Win:
-			fmt.printf("\n%s wins in %d turns!\n", game.player.name, game.player.turns)
+			fmt.printf(WIN_MSG, game.player.name, game.player.turns)
 			game.state = .GameOver
 		case .Lost:
-			fmt.printf("\n%s wins in %d turns!\n", game.computer.name, game.computer.turns)
+			fmt.printf(WIN_MSG, game.computer.name, game.computer.turns)
 			game.state = .GameOver
 		}
 	}

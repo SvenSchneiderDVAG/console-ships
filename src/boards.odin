@@ -7,6 +7,15 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
+OUT_OF_BOUNDS 	  :: "\nShip would go off board! Try again.\n"
+INVALID_PLACEMENT :: "\nInvalid placement! Try again.\n"
+CLOSE_SHIP_DBG    :: "\nShip is too close to another ship! Try again.\n"
+PLACED_SHIPS_DBG  :: "\n%v's ships placed in %v\n"
+
+ALL_SHIPS_PLACED  :: "\nAll ships have been placed - let the Battle begin!\n\n"
+PLACE_SHIP        :: "\nPlacing %v (size %d)\n\n"
+ENTER_COORDINATES :: "Enter coordinates (e.g. a1h or g4v) or 'auto' to place your ships automatically: "
+
 make_board :: proc(board: ^Board) {
 	board.row = GRID_SIZE
 	board.column = GRID_SIZE
@@ -45,20 +54,13 @@ display_board :: proc(title: string, board: ^Board) {
 is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bool {
 	//Check bounds
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
-		debug_print("Initial coordinates out of bounds\n")
+		debug_print(INVALID_PLACEMENT)
 		return false
 	}
 
-	if vertical {
-		if y + size > GRID_SIZE {
-			debug_print("Ship is out of bounds\n")
-			return false
-		}
-	} else {
-		if x + size > GRID_SIZE {
-			debug_print("Ship is out of bounds\n")
-			return false
-		}
+	if (vertical && y + size > GRID_SIZE) || (!vertical && x + size > GRID_SIZE) {
+		debug_print(OUT_OF_BOUNDS)
+		return false
 	}
 
 	for i in -1 ..= size {
@@ -72,7 +74,7 @@ is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bo
 			}
 			// if close to another ship
 			if board.cells[check_y][check_x] == "C" || board.cells[check_y][check_x] == "P" {
-				debug_print("Too close to another ship.\n")
+				debug_print(CLOSE_SHIP_DBG)
 				return false
 			}
 		}
@@ -112,9 +114,9 @@ place_ships :: proc(game: ^Game, board: ^Board, is_computer: bool) {
 	end_time := time.now()
 	delta := time.diff(start_time, end_time)
 	who := is_computer ? "Computer" : "Player"
-	debug_print("\n%s placed ships in %v \n\n", who, delta)
+	debug_print(PLACED_SHIPS_DBG, who, delta)
 	if who == "Player" {
-		time.sleep(2 * time.Second)
+		time.sleep(LONG_PAUSE * time.Second)
 		clear_console()
 		// display_board("Your Board", &game.player.my_board)
 	}
@@ -128,11 +130,8 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 		for !placed {
 			clear_console()
 			display_board("Your Board", board)
-			fmt.printf("Placing %v (size %d)\n\n", ship.name, ship.size)
-			fmt.print(
-				"Enter Start coordinates (e.g. a1v or f3h) where v is ",
-				"vertical and h is horizontal: ",
-			)
+			fmt.printf(PLACE_SHIP, ship.name, ship.size)
+			fmt.print(ENTER_COORDINATES)
 
 			num_bytes, _ := os.read(os.stdin, buf[:])
 			defer os.flush(os.stdin)
@@ -152,20 +151,15 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 			x, y, vertical, ok := parse_coordinates(input)
 
 			if !ok || x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
-				fmt.println("\nInvalid placement! Try again.\n")
-				time.sleep(1 * time.Second)
+				fmt.println(INVALID_PLACEMENT)
+				time.sleep(SHORT_PAUSE * time.Millisecond)
 				continue
 			}
 
 			// Check ship bounds before placement
-			if vertical && y + ship.size > GRID_SIZE {
-				fmt.println("\nShip would go off board! Try again.\n")
-				time.sleep(1 * time.Second)
-				continue
-			}
-			if !vertical && x + ship.size > GRID_SIZE {
-				fmt.println("\nShip would go off board! Try again.\n")
-				time.sleep(1 * time.Second)
+			if vertical && y + ship.size > GRID_SIZE || !vertical && x + ship.size > GRID_SIZE {
+				fmt.println(OUT_OF_BOUNDS)
+				time.sleep(SHORT_PAUSE * time.Millisecond)
 				continue
 			}
 
@@ -186,13 +180,13 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 				display_board("Your Board", &game.player.my_board)
 				placed = true
 			} else {
-				fmt.println("\nInvalid placement! Try again.\n")
-				time.sleep(1 * time.Second)
+				fmt.println(INVALID_PLACEMENT)
+				time.sleep(SHORT_PAUSE * time.Millisecond)
 				continue
 			}
 		}
 	}
-	fmt.println("\nAll ships have been placed - let the Battle begin!\n\n")
-	time.sleep(2 * time.Second)
+	fmt.println(ALL_SHIPS_PLACED)
+	time.sleep(LONG_PAUSE * time.Second)
 	game.state = .TurnPlayer
 }

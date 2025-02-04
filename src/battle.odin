@@ -7,24 +7,29 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
-INVALID_INPUT :: "\nInvalid input. Try again\n"
-INVALID_COLUMN :: "\nInvalid column. Use A-J\n"
-INVALID_ROW :: "\nInvalid row. Use 1-10\n"
+INVALID_INPUT  	   :: "\nInvalid input. Try again\n"
+INVALID_COLUMN     :: "\nInvalid column. Use A-J\n"
+INVALID_ROW        :: "\nInvalid row. Use 1-10\n"
 
-INPUT_ATTACK :: "Enter coordinates to attack (e.g. A1, C7): "
-ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again\n"
-PLAYER_HIT :: "\nBOOM!!! You hit a ship!\n"
-COMPUTER_HIT :: "\nBOOM!!! Computer hit at %c%d\n"
-PLAYER_SHIP_SUNK :: "\nOne of your Ships sunk!\n"
+INPUT_ATTACK       :: "Enter coordinates to attack (e.g. A1, C7): "
+ALREADY_ATTACKED   :: "\nYou've already attacked this position. Try again\n"
+PLAYER_HIT 		   :: "\nYou hit a ship!\n\n"
+COMPUTER_HIT 	   :: "\nComputer hit at %c%d\n"
+PLAYER_SHIP_SUNK   :: "\nOne of your Ships sunk!\n"
 COMPUTER_SHIP_SUNK :: "\nComputer's ship sunk!\n"
-PLAYER_MISS :: "\nMiss...it's Computer's turn\n"
-COMPUTER_MISS :: "\nComputer missed at %c%d ...\n"
+PLAYER_MISS 	   :: "\nMiss...it's Computer's turn\n"
+COMPUTER_MISS      :: "\nComputer missed at %c%d ...\n"
+
+BOOM_SCREEN :: "\n ____   ___   ___  __  __   _\n" +
+"| __ ) / _ \\ / _ \\|  \\/  | | |\n" +
+"|  _ \\| | | | | | | |\\/| | | |\n" +
+"| |_) | |_| | |_| | |  | | |_|\n" +
+"|____/ \\___/ \\___/|_|  |_| (_)\n"
+
 
 process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
 	display_board("Player's Board", &game.player.my_board)
-	// fmt.println("Player's turn\n")
-	// display_board("Player's Board", &game.player.my_board)
 	display_board("Player's Target Board", &game.player.target_board)
 
 	// Get player input
@@ -42,14 +47,14 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		if input == "show" {
 			fmt.println()
 			display_board("Computer's Board", &game.computer.my_board)
-			time.sleep(3 * time.Second)
+			time.sleep((LONG_PAUSE + 1) * time.Second)
 			return true
 		}
 	}
 
 	if len(input) < 2 || len(input) > 4 {
 		fmt.println(INVALID_INPUT)
-		time.sleep(1 * time.Second)
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		clear_console()
 		return true
 	}
@@ -57,8 +62,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	x := int(input[0] - 'a')
 	if x < 0 || x >= GRID_SIZE {
 		fmt.println(INVALID_COLUMN)
-		time.sleep(1 * time.Second)
-		// clear_console()
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		return true
 	}
 
@@ -68,8 +72,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	if y < 0 || y >= GRID_SIZE {
 		fmt.println(INVALID_ROW)
-		time.sleep(1 * time.Second)
-		// clear_console()
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		return true
 	}
 
@@ -80,8 +83,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
 		fmt.println(ALREADY_ATTACKED)
-		time.sleep(1 * time.Second)
-		// clear_console()
+		time.sleep(SHORT_PAUSE * time.Second)
 		return true
 	}
 
@@ -89,22 +91,21 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	if hit {
 		board.cells[y][x] = "X"
-		fmt.println(PLAYER_HIT)
+		clear_console()
+		fmt.println(BOOM_SCREEN)
+		fmt.printf(PLAYER_HIT)
 		if sunk {
 			fmt.println(COMPUTER_SHIP_SUNK)
-			time.sleep(1 * time.Second)
+			time.sleep(SHORT_PAUSE * time.Millisecond)
 		}
 		game.player.turns += 1
-		time.sleep(1 * time.Second)
-		// clear_console()
-		// display_board("Player's Board", &game.player.my_board)
-		// display_board("Player's Board", &game.player.my_board)
+		time.sleep(LONG_PAUSE * time.Second)
 
 		return true
 	} else {
 		board.cells[y][x] = "o"
 		fmt.println(PLAYER_MISS)
-		time.sleep(2 * time.Second)
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		game.player.turns += 1
 		return false
 	}
@@ -148,20 +149,20 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 				direction = .None,
 			}
 
-			// display_board("Player's Board", &game.player.my_board)
+			clear_console()
+			fmt.println(BOOM_SCREEN)
 			fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 			if sunk {
 				fmt.println(PLAYER_SHIP_SUNK)
 				time.sleep(1 * time.Second)
 				game.last_hit = LastHit{}
 			}
-			time.sleep(1 * time.Second)
+			time.sleep(2 * time.Second)
 			return true
 		}
 		board.cells[y][x] = "o"
-		// display_board("Player's Board", &game.player.my_board)
 		fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
-		time.sleep(1 * time.Second)
+		time.sleep(500 * time.Millisecond)
 		return false
 	}
 
@@ -217,9 +218,9 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			game.last_hit.direction = .East
 		}
 
+		// TODO: this had an out of index error 1..10 last time
 		board.cells[y][x] = "o" // Mark as miss
 		return false // End turn instead of retrying
-		// return true // Try again next turn
 	}
 
 	// Process shot
@@ -232,19 +233,19 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		board.cells[y][x] = "X"
 		game.last_hit.x = x
 		game.last_hit.y = y
-		// display_board("Player's Board", &game.player.my_board)
+		clear_console()
+		fmt.println(BOOM_SCREEN)
 		fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 		if sunk {
-			fmt.println("Ship sunk!")
+			fmt.println(PLAYER_SHIP_SUNK)
 			time.sleep(1 * time.Second)
 			game.last_hit = LastHit{}
 		}
-		time.sleep(1 * time.Second)
+		time.sleep(2 * time.Second)
 		return true
 	}
 
 	board.cells[y][x] = "o"
-	// display_board("Player's Board", &game.player.my_board)
 	fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
 
 	// Return to first hit for next attempt
@@ -262,7 +263,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	case .North:
 		game.last_hit.direction = .None
 	}
-	time.sleep(1 * time.Second)
+	time.sleep(SHORT_PAUSE * time.Millisecond)
 	return false
 }
 

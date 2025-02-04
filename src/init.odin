@@ -3,6 +3,13 @@ package main
 import "core:fmt"
 import "core:time"
 
+INIT_GAME_DBG   :: "Initializing game...\n"
+INIT_BOARDS_DBG :: "Initializing game boards...\n"
+
+TITLE_MSG       :: "Welcome to Terminal-Battleships\n\n"
+
+LONG_PAUSE  :: 2
+SHORT_PAUSE :: 500
 
 Vec2 :: struct {
 	x: int,
@@ -79,7 +86,7 @@ States :: enum {
 }
 
 game_init :: proc(game: ^Game) {
-	debug_print("Initializing game...")
+	debug_print(INIT_GAME_DBG)
 	game.player.name = "Human"
 	game.computer.name = "Computer"
 
@@ -125,7 +132,7 @@ game_init :: proc(game: ^Game) {
 		size = 2,
 	}
 
-	debug_print("Initializing game boards...")
+	debug_print(INIT_BOARDS_DBG)
 
 	make_board(&game.player.my_board)
 	make_board(&game.player.target_board)
@@ -140,6 +147,6 @@ game_init :: proc(game: ^Game) {
 	game.state = .PlaceShips
 
 	clear_console()
-	fmt.println("Welcome to Terminal-Battleships\n\n")
-	time.sleep(2 * time.Second)
+	fmt.println(TITLE_MSG)
+	time.sleep(LONG_PAUSE * time.Second)
 }

@@ -16,6 +16,9 @@ YELLOW :: "\x1b[33m"
 BLUE :: "\x1b[34m"
 RESET :: "\x1b[0m"
 
+RESTART_INVALID_INPUT :: "\nInvalid input. Please enter 'y' or 'n'.\n"
+RESTART_MSG :: "\nDo you want to play again? (y/n): "
+
 
 clear_console :: proc() {
 	when !ODIN_DEBUG {
@@ -47,7 +50,7 @@ check_win_condition :: proc(game: ^Game, board: ^Board) -> bool {
 restart_or_quit :: proc(game: ^Game) -> bool {
 	buf: [256]byte
 
-	fmt.print("\nDo you want to play again? (y/n): ")
+	fmt.print(RESTART_MSG)
 	num_bytes, _ := os.read(os.stdin, buf[:])
 	defer os.flush(os.stdin)
 	input := string(buf[:num_bytes])
@@ -62,6 +65,6 @@ restart_or_quit :: proc(game: ^Game) -> bool {
 		return false
 	}
 
-	fmt.println("\nInvalid input. Try again.\n")
+	fmt.println(RESTART_INVALID_INPUT)
 	return true
 }
