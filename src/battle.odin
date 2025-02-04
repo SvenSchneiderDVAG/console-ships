@@ -7,24 +7,34 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
-INVALID_INPUT  	   :: "\nInvalid input. Try again\n"
-INVALID_COLUMN     :: "\nInvalid column. Use A-J\n"
-INVALID_ROW        :: "\nInvalid row. Use 1-10\n"
+INVALID_INPUT :: "\nInvalid input. Try again\n"
+INVALID_COLUMN :: "\nInvalid column. Use A-J\n"
+INVALID_ROW :: "\nInvalid row. Use 1-10\n"
 
-INPUT_ATTACK       :: "Enter coordinates to attack (e.g. A1, C7): "
-ALREADY_ATTACKED   :: "\nYou've already attacked this position. Try again\n"
-PLAYER_HIT 		   :: "\nYou hit a ship!\n\n"
-COMPUTER_HIT 	   :: "\nComputer hit at %c%d\n"
-PLAYER_SHIP_SUNK   :: "\nOne of your Ships sunk!\n"
+SHOOTING_AT_DBG :: "Shooting at: %c%d\n"
+COMPUTER_BOARD_DBG :: "Computer board cell: %s\n"
+CHECK_HIT_DBG :: "Checking hit at: %c%d\n"
+COMUTER_RANDOM_SHOT_DBG :: "Computer is shooting randomly\n"
+INVALID_SHOT_DBG :: "Invalid shot at: %c%d\n"
+SHIP_ON_CELL_DBG :: "Ship found on cell: %c%d\n"
+HIT_CONFIRM_DBG :: "Hit confirmed on %v! Hits: %d/%d\n"
+SHOT_MISS_DBG :: "Missed shot at: %c%d\n"
+
+INPUT_ATTACK :: "Enter coordinates to attack (e.g. A1, C7): "
+ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again\n"
+PLAYER_HIT :: "\nYou hit a ship!\n"
+COMPUTER_HIT :: "\nComputer hit at %c%d\n"
+PLAYER_SHIP_SUNK :: "\nOne of your Ships sunk!\n"
 COMPUTER_SHIP_SUNK :: "\nComputer's ship sunk!\n"
-PLAYER_MISS 	   :: "\nMiss...it's Computer's turn\n"
-COMPUTER_MISS      :: "\nComputer missed at %c%d ...\n"
+PLAYER_MISS :: "\nMiss...it's Computer's turn\n"
+COMPUTER_MISS :: "\nComputer missed at %c%d ...\n"
 
-BOOM_SCREEN :: "\n ____   ___   ___  __  __   _\n" +
-"| __ ) / _ \\ / _ \\|  \\/  | | |\n" +
-"|  _ \\| | | | | | | |\\/| | | |\n" +
-"| |_) | |_| | |_| | |  | | |_|\n" +
-"|____/ \\___/ \\___/|_|  |_| (_)\n"
+BOOM_SCREEN ::
+	"\n ____   ___   ___  __  __   _\n" +
+	"| __ ) / _ \\ / _ \\|  \\/  | | |\n" +
+	"|  _ \\| | | | | | | |\\/| | | |\n" +
+	"| |_) | |_| | |_| | |  | | |_|\n" +
+	"|____/ \\___/ \\___/|_|  |_| (_)\n"
 
 
 process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
@@ -77,13 +87,13 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	// Add debug prints
-	debug_print("Shooting at: %c%d\n", x + 'A', y + 1)
-	debug_print("Computer board at this position: %s\n", game.computer.my_board.cells[y][x])
+	debug_print(SHOOTING_AT_DBG, x + 'A', y + 1)
+	debug_print(COMPUTER_BOARD_DBG, game.computer.my_board.cells[y][x])
 
 
 	if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
 		fmt.println(ALREADY_ATTACKED)
-		time.sleep(SHORT_PAUSE * time.Second)
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		return true
 	}
 
@@ -112,7 +122,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 }
 
 process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
-	debug_print("Computer is random targetting...\n")
+	debug_print(COMUTER_RANDOM_SHOT_DBG)
 	tmp_x := rand.int_max(GRID_SIZE)
 	tmp_y := rand.int_max(GRID_SIZE)
 
@@ -128,13 +138,13 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
 	display_board("Player's Board", &game.player.my_board)
 	display_board("Player's Target Board", &game.player.target_board)
-	// fmt.println("Computer's turn\n")
 
 	if !game.last_hit.has_hit {
 		// Random shot until hit
 		x, y := process_random_shot(board)
 		hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 		if invalid {
+			// shoot random again
 			return true
 		}
 
@@ -154,15 +164,15 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 			if sunk {
 				fmt.println(PLAYER_SHIP_SUNK)
-				time.sleep(1 * time.Second)
+				time.sleep(LONG_PAUSE * time.Second)
 				game.last_hit = LastHit{}
 			}
-			time.sleep(2 * time.Second)
+			time.sleep(LONG_PAUSE * time.Second)
 			return true
 		}
 		board.cells[y][x] = "o"
 		fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
-		time.sleep(500 * time.Millisecond)
+		time.sleep(SHORT_PAUSE * time.Millisecond)
 		return false
 	}
 
@@ -218,14 +228,19 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			game.last_hit.direction = .East
 		}
 
-		// TODO: this had an out of index error 1..10 last time
-		board.cells[y][x] = "o" // Mark as miss
+		/*
+		FIXME: this had an out of index error 1..10 last time
+		 	  also sometimes it marks the cell as miss even if it's a hit
+		*/
+		// disable next line for fixing a possible bug
+		// board.cells[y][x] = "o" // Mark as miss
 		return false // End turn instead of retrying
 	}
 
 	// Process shot
 	hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 	if invalid {
+		// TODO: this has potential to be an infinite loop
 		return true
 	}
 
@@ -328,30 +343,25 @@ check_ship_hit :: proc(
 	sunk: bool,
 	invalid: bool,
 ) {
-	debug_print("Checking hit at %c%d\n", x + 'A', y + 1)
+	debug_print(CHECK_HIT_DBG, x + 'A', y + 1)
 	if !is_valid_shot(board, x, y) {
-		debug_print("Invalid Shot%c%d\n", x + 'A', y + 1)
+		debug_print(INVALID_SHOT_DBG, x + 'A', y + 1)
 		return false, false, true
 	}
 	if board.cells[y][x] == "C" || board.cells[y][x] == "P" {
-		debug_print("C or P at %c%d\n", x + 'A', y + 1)
+		debug_print(SHIP_ON_CELL_DBG, x + 'A', y + 1)
 		for &ship in ships {
 			for pos in ship.position {
 				if pos.x == x && pos.y == y {
 					ship.hits += 1
 					ship.sunk = ship.hits >= ship.size
-					debug_print(
-						"\nHit confirmed on %v! Ship hits: %d/%d\n",
-						ship.name,
-						ship.hits,
-						ship.size,
-					)
+					debug_print(HIT_CONFIRM_DBG, ship.name, ship.hits, ship.size)
 					return true, ship.sunk, false
 				}
 			}
 		}
 	}
-	debug_print("Shot missed at %c%d\n", x + 'A', y + 1)
+	debug_print(SHOT_MISS_DBG, x + 'A', y + 1)
 	return false, false, false
 }
 

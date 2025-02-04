@@ -3,9 +3,8 @@ package main
 import "core:fmt"
 
 PLACE_SHIPS_MSG :: "\nPlace your ships on the board\n"
-GAME_OVER_MSG   :: "\nGame Over\n"
-WIN_MSG 		:: "\nCongratulations! %s wins in %d turns!\n"
-
+GAME_OVER_MSG :: "\nGame Over.\n"
+WIN_MSG :: "\nCongratulations! %s wins in %d turns!\n"
 
 main :: proc() {
 	game: Game

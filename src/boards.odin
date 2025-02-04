@@ -7,13 +7,13 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
-OUT_OF_BOUNDS 	  :: "\nShip would go off board! Try again.\n"
+OUT_OF_BOUNDS :: "\nShip would go off board! Try again.\n"
 INVALID_PLACEMENT :: "\nInvalid placement! Try again.\n"
-CLOSE_SHIP_DBG    :: "\nShip is too close to another ship! Try again.\n"
-PLACED_SHIPS_DBG  :: "\n%v's ships placed in %v\n"
+CLOSE_SHIP_DBG :: "\nShip is too close to another ship! Try again.\n"
+PLACED_SHIPS_DBG :: "\n%v's ships placed in %v\n"
 
-ALL_SHIPS_PLACED  :: "\nAll ships have been placed - let the Battle begin!\n\n"
-PLACE_SHIP        :: "\nPlacing %v (size %d)\n\n"
+ALL_SHIPS_PLACED :: "\nAll ships have been placed - let the Battle begin!\n\n"
+PLACE_SHIP :: "\nPlacing %v (size %d)\n\n"
 ENTER_COORDINATES :: "Enter coordinates (e.g. a1h or g4v) or 'auto' to place your ships automatically: "
 
 make_board :: proc(board: ^Board) {
@@ -23,7 +23,6 @@ make_board :: proc(board: ^Board) {
 	for i in 0 ..< GRID_SIZE {
 		for j in 0 ..< GRID_SIZE {
 			board.cells[i][j] = "."
-			// debug_print(fmt.tprintf("Cell [%d][%d] set to .", i, j))
 		}
 	}
 }
