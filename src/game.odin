@@ -2,6 +2,8 @@ package main
 
 import "core:fmt"
 
+VERSION :: "0.1.0"
+
 PLACE_SHIPS_MSG :: "\nPlace your ships on the board\n"
 GAME_OVER_MSG :: "\nGame Over.\n"
 WIN_MSG :: "\nCongratulations! %s wins in %d turns!\n"

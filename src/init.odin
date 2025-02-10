@@ -3,12 +3,12 @@ package main
 import "core:fmt"
 import "core:time"
 
-INIT_GAME_DBG   :: "Initializing game...\n"
+INIT_GAME_DBG :: "Initializing game...\n"
 INIT_BOARDS_DBG :: "Initializing game boards...\n"
 
-TITLE_MSG       :: "Welcome to Terminal-Battleships\n\n"
+TITLE_MSG :: "Welcome to Terminal-Battleships " + VERSION + "\n\n"
 
-LONG_PAUSE  :: 2
+LONG_PAUSE :: 2
 SHORT_PAUSE :: 500
 
 Vec2 :: struct {
@@ -39,21 +39,21 @@ Player :: struct {
 }
 
 Direction :: enum {
-	None,
-	North,
-	East,
-	South,
-	West,
+	None  = -1,
+	North = 0,
+	South = 1,
+	East  = 2,
+	West  = 3,
 }
 
 LastHit :: struct {
-	x:                int,
-	y:                int,
+	x, y:             int,
 	first_x, first_y: int,
 	direction:        Direction,
 	vertical:         bool,
 	horizontal:       bool,
 	has_hit:          bool,
+	tried_directions: [4]bool,
 }
 
 Game :: struct {

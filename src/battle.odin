@@ -133,6 +133,12 @@ process_random_shot :: proc(board: ^Board) -> (x: int, y: int) {
 	return tmp_x, tmp_y
 }
 
+all_directions_tried :: proc(tried: [4]bool) -> bool {
+	for tried_dir in tried {
+		if !tried_dir do return false
+	}
+	return true
+}
 
 process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
@@ -151,12 +157,13 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		if hit {
 			board.cells[y][x] = "X"
 			game.last_hit = LastHit {
-				x         = x,
-				y         = y,
-				first_x   = x,
-				first_y   = y,
-				has_hit   = true,
-				direction = .None,
+				x                = x,
+				y                = y,
+				first_x          = x,
+				first_y          = y,
+				has_hit          = true,
+				direction        = .None,
+				tried_directions = [4]bool{false, false, false, false}, // Explicitly reset
 			}
 
 			clear_console()
@@ -180,21 +187,37 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	x := game.last_hit.x
 	y := game.last_hit.y
 
-	// Try new direction if none set
 	if game.last_hit.direction == .None {
-		directions := []Direction{.East, .West, .South, .North}
-		offsets := [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+		// Add boundary check before trying new direction
+		directions := []Direction{.West, .East, .South, .North} // Try West first if at East edge
+		offsets := [][2]int{{-1, 0}, {1, 0}, {0, 1}, {0, -1}}
+		valid_direction_found := false
 
 		for dir, i in directions {
+			if game.last_hit.tried_directions[i] do continue
+
 			new_x := x + offsets[i][0]
 			new_y := y + offsets[i][1]
 
+			// Check bounds before attempting shot
 			if is_valid_shot(board, new_x, new_y) && is_in_bounds(new_x, new_y, game) {
 				x = new_x
 				y = new_y
 				game.last_hit.direction = dir
+				game.last_hit.tried_directions[i] = true
+				valid_direction_found = true
+				debug_print("Trying direction %v from %c%d\n", dir, x + 'A', y + 1)
 				break
+			} else {
+				game.last_hit.tried_directions[i] = true // Mark invalid direction as tried
 			}
+		}
+
+		if !valid_direction_found {
+			// No valid direction found, reset to random
+			game.last_hit = LastHit{}
+			debug_print("No valid directions, reverting to random\n")
+			return true
 		}
 	} else {
 		// Continue in current direction
@@ -212,29 +235,16 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 	// Check bounds and previous shots
 	if !is_in_bounds(x, y, game) || !is_valid_shot(board, x, y) {
-		// Return to first hit and try new direction
+		// Return to first hit
 		game.last_hit.x = game.last_hit.first_x
 		game.last_hit.y = game.last_hit.first_y
 
-		// Rotate direction
-		#partial switch game.last_hit.direction {
-		case .East:
-			game.last_hit.direction = .South
-		case .West:
-			game.last_hit.direction = .North
-		case .South:
-			game.last_hit.direction = .West
-		case .North:
-			game.last_hit.direction = .East
+		// Change direction and potentially reset to random
+		should_reset := change_direction(game)
+		if should_reset {
+			return true // Try random shot
 		}
-
-		/*
-		FIXME: this had an out of index error 1..10 last time
-		 	  also sometimes it marks the cell as miss even if it's a hit
-		*/
-		// disable next line for fixing a possible bug
-		// board.cells[y][x] = "o" // Mark as miss
-		return false // End turn instead of retrying
+		return false // Try new direction
 	}
 
 	// Process shot
@@ -268,32 +278,30 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	game.last_hit.y = game.last_hit.first_y
 
 	// Change direction after miss
-	#partial switch game.last_hit.direction {
-	case .East:
-		game.last_hit.direction = .West
-	case .West:
-		game.last_hit.direction = .South
-	case .South:
-		game.last_hit.direction = .North
-	case .North:
-		game.last_hit.direction = .None
-	}
+	change_direction(game)
 	time.sleep(SHORT_PAUSE * time.Millisecond)
 	return false
 }
 
 is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
+	// First check basic bounds for all cases
+	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+		debug_print("Out of bounds at %c%d\n", x + 'A', y + 1)
+		return false
+	}
+
+	// Then check direction-specific bounds
 	switch game.last_hit.direction {
 	case .None:
-		return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+		return true
 	case .North:
-		return y > 0 && y < GRID_SIZE && x >= 0 && x < GRID_SIZE
+		return y > 0
 	case .South:
-		return y >= 0 && y < GRID_SIZE - 1 && x >= 0 && x < GRID_SIZE
+		return y < GRID_SIZE - 1
 	case .West:
-		return x > 0 && y >= 0 && y < GRID_SIZE
+		return x > 0
 	case .East:
-		return x >= 0 && x < GRID_SIZE - 1 && y >= 0 && y < GRID_SIZE
+		return x < GRID_SIZE - 1
 	}
 	return false
 }
@@ -307,31 +315,6 @@ has_cell_been_shot :: proc(board: ^Board, x, y: int) -> bool {
 	// Check for hits (X) or misses (o)
 	cell := board.cells[y][x]
 	return cell == "X" || cell == "o"
-}
-
-parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok: bool) {
-	if len(input) < 3 || len(input) > 4 {
-		return 0, 0, false, false
-	}
-
-	{
-		// convert letters to x and y to coordinates
-		x := int(input[0] - 'a')
-		if x < 0 || x >= GRID_SIZE {
-			return 0, 0, false, false
-		}
-
-		y_str := input[1:len(input) - 1]
-		y = strconv.atoi(y_str) - 1
-
-		if y < 0 || y >= GRID_SIZE {
-			return 0, 0, false, false
-		}
-
-		vertical := input[len(input) - 1] == 'v'
-		ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
-		return x, y, vertical, ok
-	}
 }
 
 check_ship_hit :: proc(
@@ -382,5 +365,65 @@ check_ships_sunk :: proc(ships: []Ship) -> bool {
 			return false
 		}
 	}
+	return true
+}
+
+change_direction :: proc(game: ^Game) -> bool {
+	debug_print("Changing direction from %v\n", game.last_hit.direction)
+
+	// Reset tried directions when starting in a new direction
+	if game.last_hit.direction == .None {
+		game.last_hit.tried_directions = [4]bool{false, false, false, false}
+	}
+
+	// Only mark current direction as tried if we actually tried it
+	if game.last_hit.direction != .None {
+		dir_idx := int(game.last_hit.direction)
+		game.last_hit.tried_directions[dir_idx] = true
+	}
+
+	debug_print(
+		"Tried directions: E:%v W:%v N:%v S:%v\n",
+		game.last_hit.tried_directions[int(Direction.East)],
+		game.last_hit.tried_directions[int(Direction.West)],
+		game.last_hit.tried_directions[int(Direction.North)],
+		game.last_hit.tried_directions[int(Direction.South)],
+	)
+
+	// Try opposite direction first
+	#partial switch game.last_hit.direction {
+	case .East:
+		if !game.last_hit.tried_directions[int(Direction.West)] {
+			game.last_hit.direction = .West
+			return false
+		}
+	case .West:
+		if !game.last_hit.tried_directions[int(Direction.East)] {
+			game.last_hit.direction = .East
+			return false
+		}
+	case .South:
+		if !game.last_hit.tried_directions[int(Direction.North)] {
+			game.last_hit.direction = .North
+			return false
+		}
+	case .North:
+		if !game.last_hit.tried_directions[int(Direction.South)] {
+			game.last_hit.direction = .South
+			return false
+		}
+	}
+	directions := []Direction{.West, .East, .South, .North} // Try West first if at East edge
+	// Try remaining untried directions in specific order
+	for dir in directions {
+		if !game.last_hit.tried_directions[int(dir)] {
+			game.last_hit.direction = dir
+			return false
+		}
+	}
+
+	// All directions truly tried
+	game.last_hit = LastHit{}
+	debug_print("All directions tried, resetting to random\n")
 	return true
 }

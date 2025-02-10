@@ -14,7 +14,7 @@ PLACED_SHIPS_DBG :: "\n%v's ships placed in %v\n"
 
 ALL_SHIPS_PLACED :: "\nAll ships have been placed - let the Battle begin!\n\n"
 PLACE_SHIP :: "\nPlacing %v (size %d)\n\n"
-ENTER_COORDINATES :: "Enter coordinates (e.g. a1h or g4v) or 'auto' to place your ships automatically: "
+ENTER_COORDINATES :: "Enter coordinates (e.g. a1h or g4v) or 'auto' \nto place your ships automatically: "
 
 make_board :: proc(board: ^Board) {
 	board.row = GRID_SIZE
@@ -48,6 +48,31 @@ display_board :: proc(title: string, board: ^Board) {
 		fmt.println()
 	}
 	fmt.println()
+}
+
+parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok: bool) {
+	if len(input) < 3 || len(input) > 4 {
+		return 0, 0, false, false
+	}
+
+	{
+		// convert letters to x and y to coordinates
+		x := int(input[0] - 'a')
+		if x < 0 || x >= GRID_SIZE {
+			return 0, 0, false, false
+		}
+
+		y_str := input[1:len(input) - 1]
+		y = strconv.atoi(y_str) - 1
+
+		if y < 0 || y >= GRID_SIZE {
+			return 0, 0, false, false
+		}
+
+		vertical := input[len(input) - 1] == 'v'
+		ok := x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+		return x, y, vertical, ok
+	}
 }
 
 is_valid_placement :: proc(board: ^Board, x, y, size: int, vertical: bool) -> bool {
