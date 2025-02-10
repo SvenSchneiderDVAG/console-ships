@@ -1,3 +1,5 @@
 ols.json
 console-ships.*
 bin/game*
+src/game.odin
+game.log

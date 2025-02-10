@@ -132,6 +132,7 @@ place_ships :: proc(game: ^Game, board: ^Board, is_computer: bool) {
 					}
 				}
 				ship.placed = true
+				log_ship_placement(&game.logger, !is_computer, ship)
 			}
 		}
 	}

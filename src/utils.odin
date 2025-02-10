@@ -62,6 +62,8 @@ restart_or_quit :: proc(game: ^Game) -> bool {
 		return true
 	} else if input == "n" {
 		game.is_running = false
+		log_quit(&game.logger)
+		close_logger(&game.logger)
 		return false
 	}
 

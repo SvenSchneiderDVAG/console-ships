@@ -64,6 +64,7 @@ Game :: struct {
 	turns:      int,
 	is_running: bool,
 	last_hit:   LastHit,
+	logger:     GameLogger,
 }
 
 Ships :: enum {
@@ -89,6 +90,12 @@ game_init :: proc(game: ^Game) {
 	debug_print(INIT_GAME_DBG)
 	game.player.name = "Human"
 	game.computer.name = "Computer"
+
+	logger, ok := init_logger()
+	if ok {
+		game.logger = logger
+		log_game_start(&game.logger)
+	}
 
 	game.computer.ships[0] = Ship {
 		name = .Carrier,

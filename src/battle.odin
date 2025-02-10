@@ -100,11 +100,13 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	hit, sunk, invalid := check_ship_hit(&game.computer.my_board, game.computer.ships[:], x, y)
 
 	if hit {
+		log_shot(&game.logger, true, x, y, true)
 		board.cells[y][x] = "X"
 		clear_console()
 		fmt.println(BOOM_SCREEN)
 		fmt.printf(PLAYER_HIT)
 		if sunk {
+			log_ship_sunk(&game.logger, true, "Computer")
 			fmt.println(COMPUTER_SHIP_SUNK)
 			time.sleep(SHORT_PAUSE * time.Millisecond)
 		}
@@ -113,6 +115,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 		return true
 	} else {
+		log_shot(&game.logger, true, x, y, false)
 		board.cells[y][x] = "o"
 		fmt.println(PLAYER_MISS)
 		time.sleep(SHORT_PAUSE * time.Millisecond)
@@ -155,6 +158,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		}
 
 		if hit {
+			log_shot(&game.logger, false, x, y, true)
 			board.cells[y][x] = "X"
 			game.last_hit = LastHit {
 				x                = x,
@@ -170,6 +174,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			fmt.println(BOOM_SCREEN)
 			fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 			if sunk {
+				log_ship_sunk(&game.logger, false, "Player")
 				fmt.println(PLAYER_SHIP_SUNK)
 				time.sleep(LONG_PAUSE * time.Second)
 				game.last_hit = LastHit{}
@@ -177,6 +182,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			time.sleep(LONG_PAUSE * time.Second)
 			return true
 		}
+		log_shot(&game.logger, false, x, y, false)
 		board.cells[y][x] = "o"
 		fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
 		time.sleep(SHORT_PAUSE * time.Millisecond)
@@ -255,6 +261,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	if hit {
+		log_shot(&game.logger, false, x, y, true)
 		board.cells[y][x] = "X"
 		game.last_hit.x = x
 		game.last_hit.y = y
@@ -262,6 +269,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		fmt.println(BOOM_SCREEN)
 		fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 		if sunk {
+			log_ship_sunk(&game.logger, false, "Player")
 			fmt.println(PLAYER_SHIP_SUNK)
 			time.sleep(1 * time.Second)
 			game.last_hit = LastHit{}
@@ -270,6 +278,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		return true
 	}
 
+	log_shot(&game.logger, false, x, y, false)
 	board.cells[y][x] = "o"
 	fmt.printf(COMPUTER_MISS, x + 'A', y + 1)
 

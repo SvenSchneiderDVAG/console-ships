@@ -36,6 +36,7 @@ main :: proc() {
 			check_win_condition(&game, &game.player.my_board)
 		case .GameOver:
 			fmt.println(GAME_OVER_MSG)
+			log_game_over(&game.logger, game.state == .Win)
 			game.state = .Restart
 		case .Restart:
 			if !restart_or_quit(&game) {
@@ -53,5 +54,8 @@ main :: proc() {
 			fmt.printf(WIN_MSG, game.computer.name, game.computer.turns)
 			game.state = .GameOver
 		}
+	}
+	if game.logger.file_handle != 0 {
+		close_logger(&game.logger)
 	}
 }
