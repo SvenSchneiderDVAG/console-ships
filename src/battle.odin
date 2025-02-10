@@ -97,7 +97,12 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		return true
 	}
 
-	hit, sunk, invalid := check_ship_hit(&game.computer.my_board, game.computer.ships[:], x, y)
+	hit, sunk, invalid, ship := check_ship_hit(
+		&game.computer.my_board,
+		game.computer.ships[:],
+		x,
+		y,
+	)
 
 	if hit {
 		log_shot(&game.logger, true, x, y, true)
@@ -106,6 +111,8 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		fmt.println(BOOM_SCREEN)
 		fmt.printf(PLAYER_HIT)
 		if sunk {
+			//mark_sunken_ship(&game.computer.my_board, ship)
+			mark_sunken_ship(&game.player.target_board, ship)
 			log_ship_sunk(&game.logger, true, "Computer")
 			fmt.println(COMPUTER_SHIP_SUNK)
 			time.sleep(SHORT_PAUSE * time.Millisecond)
@@ -151,7 +158,12 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	if !game.last_hit.has_hit {
 		// Random shot until hit
 		x, y := process_random_shot(board)
-		hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+		hit, sunk, invalid, ship := check_ship_hit(
+			&game.player.my_board,
+			game.player.ships[:],
+			x,
+			y,
+		)
 		if invalid {
 			// shoot random again
 			return true
@@ -174,6 +186,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			fmt.println(BOOM_SCREEN)
 			fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 			if sunk {
+				mark_sunken_ship(&game.player.my_board, ship)
 				log_ship_sunk(&game.logger, false, "Player")
 				fmt.println(PLAYER_SHIP_SUNK)
 				time.sleep(LONG_PAUSE * time.Second)
@@ -254,7 +267,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	// Process shot
-	hit, sunk, invalid := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
+	hit, sunk, invalid, ship := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 	if invalid {
 		// TODO: this has potential to be an infinite loop
 		return true
@@ -269,6 +282,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		fmt.println(BOOM_SCREEN)
 		fmt.printf(COMPUTER_HIT, x + 'A', y + 1)
 		if sunk {
+			mark_sunken_ship(&game.player.my_board, ship)
 			log_ship_sunk(&game.logger, false, "Player")
 			fmt.println(PLAYER_SHIP_SUNK)
 			time.sleep(1 * time.Second)
@@ -334,11 +348,12 @@ check_ship_hit :: proc(
 	hit: bool,
 	sunk: bool,
 	invalid: bool,
+	ship: ^Ship,
 ) {
 	debug_print(CHECK_HIT_DBG, x + 'A', y + 1)
 	if !is_valid_shot(board, x, y) {
 		debug_print(INVALID_SHOT_DBG, x + 'A', y + 1)
-		return false, false, true
+		return false, false, true, nil
 	}
 	if board.cells[y][x] == "C" || board.cells[y][x] == "P" {
 		debug_print(SHIP_ON_CELL_DBG, x + 'A', y + 1)
@@ -348,20 +363,27 @@ check_ship_hit :: proc(
 					ship.hits += 1
 					ship.sunk = ship.hits >= ship.size
 					debug_print(HIT_CONFIRM_DBG, ship.name, ship.hits, ship.size)
-					return true, ship.sunk, false
+					return true, ship.sunk, false, &ship
 				}
 			}
 		}
 	}
 	debug_print(SHOT_MISS_DBG, x + 'A', y + 1)
-	return false, false, false
+	return false, false, false, nil
+}
+
+mark_sunken_ship :: proc(board: ^Board, ship: ^Ship) {
+	// Mark all positions of the sunken ship with '*'
+	for pos in ship.position {
+		board.cells[pos.y][pos.x] = "*"
+	}
 }
 
 is_valid_shot :: proc(board: ^Board, x, y: int) -> bool {
 	// if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
 		return false
-	} else if board.cells[y][x] == "X" || board.cells[y][x] == "o" {
+	} else if board.cells[y][x] == "X" || board.cells[y][x] == "o" || board.cells[y][x] == "*" {
 		return false
 	} else {
 		return true
