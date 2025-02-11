@@ -6,7 +6,8 @@ VERSION :: "0.1.0"
 
 PLACE_SHIPS_MSG :: "\nPlace your ships on the board\n"
 GAME_OVER_MSG :: "\nGame Over.\n"
-WIN_MSG :: "\nCongratulations! %s wins in %d turns!\n"
+WIN_MSG_COMPUTER :: "\nCongratulations! %s wins in %d turns!\n"
+WIN_MSG_PLAYER :: "\nCongratulations! You've won in %d turns!\n"
 
 main :: proc() {
 	game: Game
@@ -28,7 +29,6 @@ main :: proc() {
 			}
 			check_win_condition(&game, &game.player.target_board)
 		case .TurnComputer:
-			// fmt.println("Computer's turn\n\n")
 			display_board("Player's Board", &game.player.my_board)
 			if !process_computer_shot(&game, &game.player.my_board) {
 				game.state = .TurnPlayer
@@ -36,7 +36,6 @@ main :: proc() {
 			check_win_condition(&game, &game.player.my_board)
 		case .GameOver:
 			fmt.println(GAME_OVER_MSG)
-			log_game_over(&game.logger, game.state == .Win)
 			game.state = .Restart
 		case .Restart:
 			if !restart_or_quit(&game) {
@@ -48,10 +47,10 @@ main :: proc() {
 		case .Init:
 			game_init(&game)
 		case .Win:
-			fmt.printf(WIN_MSG, game.player.name, game.player.turns)
+			fmt.printf(WIN_MSG_PLAYER, game.player.turns)
 			game.state = .GameOver
 		case .Lost:
-			fmt.printf(WIN_MSG, game.computer.name, game.computer.turns)
+			fmt.printf(WIN_MSG_COMPUTER, game.computer.name, game.computer.turns)
 			game.state = .GameOver
 		}
 	}

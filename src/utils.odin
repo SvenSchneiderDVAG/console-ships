@@ -34,14 +34,15 @@ debug_print :: proc(message: string, args: ..any) {
 }
 
 check_win_condition :: proc(game: ^Game, board: ^Board) -> bool {
-	// Check if all computer ships are sunk
 	if check_ships_sunk(game.computer.ships[:]) {
 		game.state = .Win
+		log_game_over(&game.logger, true)
 		return true
 	}
 
 	if check_ships_sunk(game.player.ships[:]) {
 		game.state = .Lost
+		log_game_over(&game.logger, false)
 		return true
 	}
 	return false

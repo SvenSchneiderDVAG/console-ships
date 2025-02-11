@@ -10,6 +10,7 @@ TITLE_MSG :: "Welcome to Terminal-Battleships " + VERSION + "\n\n"
 
 LONG_PAUSE :: 2
 SHORT_PAUSE :: 500
+NUM_SHIPS :: 5
 
 Vec2 :: struct {
 	x: int,
@@ -32,7 +33,7 @@ Ship :: struct {
 
 Player :: struct {
 	name:         string,
-	ships:        [5]Ship,
+	ships:        [NUM_SHIPS]Ship,
 	my_board:     Board,
 	target_board: Board,
 	turns:        int,
@@ -97,46 +98,29 @@ game_init :: proc(game: ^Game) {
 		log_game_start(&game.logger)
 	}
 
-	game.computer.ships[0] = Ship {
-		name = .Carrier,
-		size = 5,
-	}
-	game.computer.ships[1] = Ship {
-		name = .Battleship,
-		size = 4,
-	}
-	game.computer.ships[2] = Ship {
-		name = .Cruiser,
-		size = 3,
-	}
-	game.computer.ships[3] = Ship {
-		name = .Submarine,
-		size = 3,
-	}
-	game.computer.ships[4] = Ship {
-		name = .Destroyer,
-		size = 2,
-	}
-
-	game.player.ships[0] = Ship {
-		name = .Carrier,
-		size = 5,
-	}
-	game.player.ships[1] = Ship {
-		name = .Battleship,
-		size = 4,
-	}
-	game.player.ships[2] = Ship {
-		name = .Cruiser,
-		size = 3,
-	}
-	game.player.ships[3] = Ship {
-		name = .Submarine,
-		size = 3,
-	}
-	game.player.ships[4] = Ship {
-		name = .Destroyer,
-		size = 2,
+	ship_sizes := []int{5, 4, 3, 3, 2}
+	for i in 0 ..< len(ship_sizes) {
+		ship_type: Ships
+		switch i {
+		case 0:
+			ship_type = .Carrier
+		case 1:
+			ship_type = .Battleship
+		case 2:
+			ship_type = .Cruiser
+		case 3:
+			ship_type = .Submarine
+		case 4:
+			ship_type = .Destroyer
+		}
+		game.computer.ships[i] = Ship {
+			name = ship_type,
+			size = ship_sizes[i],
+		}
+		game.player.ships[i] = Ship {
+			name = ship_type,
+			size = ship_sizes[i],
+		}
 	}
 
 	debug_print(INIT_BOARDS_DBG)

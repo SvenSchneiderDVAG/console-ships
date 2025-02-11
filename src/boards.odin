@@ -63,7 +63,12 @@ parse_coordinates :: proc(input: string) -> (x: int, y: int, vertical: bool, ok:
 		}
 
 		y_str := input[1:len(input) - 1]
-		y = strconv.atoi(y_str) - 1
+		y := strconv.atoi(y_str)
+		if y == -1 {
+			return 0, 0, false, false
+		}
+		y -= 1
+
 
 		if y < 0 || y >= GRID_SIZE {
 			return 0, 0, false, false
