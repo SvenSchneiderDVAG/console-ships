@@ -13,8 +13,12 @@ CLOSE_SHIP_DBG :: "\nShip is too close to another ship! Try again.\n"
 PLACED_SHIPS_DBG :: "\n%v's ships placed in %v\n"
 
 ALL_SHIPS_PLACED :: "\nAll ships have been placed - let the Battle begin!\n\n"
-PLACE_SHIP :: "\nPlacing %v (size %d)\n\n"
 ENTER_COORDINATES :: "Enter coordinates (e.g. a1h or g4v) or 'auto' \nto place your ships automatically: "
+PLACE_SHIP :: "\nPlacing %v (size %d)\n\n"
+
+BOARD_COMPUTER :: "Computer's Board"
+BOARD_PLAYER :: "Player's Board"
+BOARD_PLAYER_TARGET :: "Player's Target Board"
 
 make_board :: proc(board: ^Board) {
 	board.row = GRID_SIZE
@@ -159,7 +163,7 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 		placed := false
 		for !placed {
 			clear_console()
-			display_board("Your Board", board)
+			display_board(BOARD_PLAYER, board)
 			fmt.printf(PLACE_SHIP, ship.name, ship.size)
 			fmt.print(ENTER_COORDINATES)
 
@@ -207,7 +211,7 @@ place_player_ships :: proc(game: ^Game, board: ^Board) {
 					}
 				}
 				clear_console()
-				display_board("Your Board", &game.player.my_board)
+				display_board(BOARD_PLAYER, &game.player.my_board)
 				placed = true
 			} else {
 				fmt.println(INVALID_PLACEMENT)

@@ -7,26 +7,30 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
-INVALID_INPUT :: "\nInvalid input. Try again\n"
-INVALID_COLUMN :: "\nInvalid column. Use A-J\n"
-INVALID_ROW :: "\nInvalid row. Use 1-10\n"
+INVALID_INPUT :: "\nInvalid input. Try again!\n"
+INVALID_COLUMN :: "\nInvalid column. Use A-J!\n"
+INVALID_ROW :: "\nInvalid row. Use 1-10!\n"
 
 SHOOTING_AT_DBG :: "Shooting at: %c%d\n"
 COMPUTER_BOARD_DBG :: "Computer board cell: %s\n"
 CHECK_HIT_DBG :: "Checking hit at: %c%d\n"
-COMUTER_RANDOM_SHOT_DBG :: "Computer is shooting randomly\n"
-INVALID_SHOT_DBG :: "Invalid shot at: %c%d\n"
-SHIP_ON_CELL_DBG :: "Ship found on cell: %c%d\n"
-HIT_CONFIRM_DBG :: "Hit confirmed on %v! Hits: %d/%d\n"
-SHOT_MISS_DBG :: "Missed shot at: %c%d\n"
+COMUTER_RANDOM_SHOT_DBG :: "Computer is shooting randomly.\n"
+CHANGE_DIRECTION_DBG :: "Changing direction to %v.\n"
+TRYING_DIRECTION_DBG :: "Trying direction %v at %c%d.\n"
+NO_VALID_DIRECTION_DBG :: "No valid directions, reverting to random.\n"
+TRIED_DIRECTIONS_DBG :: "Tried directions: %v %v %v %v\n"
+INVALID_SHOT_DBG :: "Invalid shot at: %c%d.\n"
+SHIP_ON_CELL_DBG :: "Ship found on cell: %c%d.\n"
+HIT_CONFIRM_DBG :: "Hit confirmed on %v! Hits: %d/%d.\n"
+SHOT_MISS_DBG :: "Missed shot at: %c%d.\n"
 
 INPUT_ATTACK :: "Enter coordinates to attack (e.g. A1, C7): "
-ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again\n"
+ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again.\n"
 PLAYER_HIT :: "\nYou hit a ship!\n"
 COMPUTER_HIT :: "\nComputer hit at %c%d\n"
 PLAYER_SHIP_SUNK :: "\nOne of your Ships sunk!\n"
 COMPUTER_SHIP_SUNK :: "\nComputer's ship sunk!\n"
-PLAYER_MISS :: "\nMiss...it's Computer's turn\n"
+PLAYER_MISS :: "\nMiss...it's Computer's turn.\n"
 COMPUTER_MISS :: "\nComputer missed at %c%d ...\n"
 
 BOOM_SCREEN ::
@@ -39,8 +43,8 @@ BOOM_SCREEN ::
 
 process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
-	display_board("Player's Board", &game.player.my_board)
-	display_board("Player's Target Board", &game.player.target_board)
+	display_board(BOARD_PLAYER, &game.player.my_board)
+	display_board(BOARD_PLAYER_TARGET, &game.player.target_board)
 
 	// Get player input
 	buf: [256]byte
@@ -56,7 +60,7 @@ process_player_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	when ODIN_DEBUG {
 		if input == "show" {
 			fmt.println()
-			display_board("Computer's Board", &game.computer.my_board)
+			display_board(BOARD_COMPUTER, &game.computer.my_board)
 			time.sleep((LONG_PAUSE + 1) * time.Second)
 			return true
 		}
@@ -179,8 +183,8 @@ handle_shot_result :: proc(game: ^Game, board: ^Board, x, y: int, hit: bool, shi
 
 process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	clear_console()
-	display_board("Player's Board", &game.player.my_board)
-	display_board("Player's Target Board", &game.player.target_board)
+	display_board(BOARD_PLAYER, &game.player.my_board)
+	display_board(BOARD_PLAYER_TARGET, &game.player.target_board)
 
 	if !game.last_hit.has_hit {
 		// Random shot until hit
@@ -197,11 +201,12 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			fmt.println(INVALID_INPUT)
 			time.sleep(LONG_PAUSE * time.Second)
 			// shoot random again
-			return true
+			panic(INVALID_INPUT)
 		}
 
 		if hit {
 			log_shot(&game.logger, false, x, y, true)
+			game.computer.turns += 1
 			game.last_hit = LastHit {
 				x                = x,
 				y                = y,
@@ -241,7 +246,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 				y = new_y
 				game.last_hit.direction = dir
 				valid_direction_found = true
-				debug_print("Trying direction %v from %c%d\n", dir, x + 'A', y + 1)
+				debug_print(TRYING_DIRECTION_DBG, dir, x + 'A', y + 1)
 				break
 			} else {
 				game.last_hit.tried_directions[i] = true // Mark invalid direction as tried
@@ -250,7 +255,8 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 
 		if !valid_direction_found {
 			game.last_hit = LastHit{}
-			debug_print("No valid directions, reverting to random\n")
+			debug_print(NO_VALID_DIRECTION_DBG)
+			game.computer.turns += 1
 			return true
 		}
 	} else {
@@ -276,18 +282,21 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		// Change direction and potentially reset to random
 		should_reset := change_direction(game)
 		if should_reset {
+			game.computer.turns += 1
 			return true // Try random shot
 		}
+		game.computer.turns += 1
 		return false // Try new direction
 	}
 
 	// Process shot
 	hit, sunk, invalid, ship := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 	if invalid {
-		// TODO: this has potential to be an infinite loop
-		fmt.println(INVALID_INPUT)
+		// fmt.println(INVALID_INPUT)
 		time.sleep(LONG_PAUSE * time.Second)
-		return true
+		// at this point we crash the game
+		panic(INVALID_INPUT)
+		// return true
 	}
 
 	if hit {
@@ -303,13 +312,15 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 		time.sleep(SHORT_PAUSE * time.Millisecond)
 	}
 
-	return handle_shot_result(game, board, x, y, hit, ship)
+	shot_result := handle_shot_result(game, board, x, y, hit, ship)
+	game.computer.turns += 1 // Increment turn counter
+	return shot_result
 }
 
 is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
 	// First check basic bounds for all cases
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
-		debug_print("Out of bounds at %c%d\n", x + 'A', y + 1)
+		debug_print(INVALID_SHOT_DBG, x + 'A', y + 1)
 		return false
 	}
 	return true
@@ -360,7 +371,6 @@ mark_sunken_ship :: proc(board: ^Board, ship: ^Ship) {
 }
 
 is_valid_shot :: proc(board: ^Board, x, y: int) -> bool {
-	// if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
 		return false
 	} else if board.cells[y][x] == "X" || board.cells[y][x] == "o" || board.cells[y][x] == "*" {
@@ -380,12 +390,7 @@ check_ships_sunk :: proc(ships: []Ship) -> bool {
 }
 
 change_direction :: proc(game: ^Game) -> bool {
-	debug_print("Changing direction from %v\n", game.last_hit.direction)
-
-	// Reset tried directions when starting in a new direction
-	// if game.last_hit.direction == .None {
-	// 	game.last_hit.tried_directions = [4]bool{false, false, false, false}
-	// }
+	debug_print(CHANGE_DIRECTION_DBG, game.last_hit.direction)
 
 	// Only mark current direction as tried if we actually tried it
 	if game.last_hit.direction != .None {
@@ -394,14 +399,14 @@ change_direction :: proc(game: ^Game) -> bool {
 	}
 
 	debug_print(
-		"Tried directions: E:%v W:%v N:%v S:%v\n",
+		TRIED_DIRECTIONS_DBG,
 		game.last_hit.tried_directions[int(Direction.East)],
 		game.last_hit.tried_directions[int(Direction.West)],
 		game.last_hit.tried_directions[int(Direction.North)],
 		game.last_hit.tried_directions[int(Direction.South)],
 	)
 
-	directions := []Direction{.West, .East, .South, .North} // Try West first if at East edge
+	directions := []Direction{.West, .East, .South, .North}
 	// Try remaining untried directions in specific order
 	for dir in directions {
 		if !game.last_hit.tried_directions[int(dir)] {
@@ -410,8 +415,8 @@ change_direction :: proc(game: ^Game) -> bool {
 		}
 	}
 
-	// All directions truly tried
+	// All directions tried
 	game.last_hit = LastHit{}
-	debug_print("All directions tried, resetting to random\n")
+	debug_print(TRYING_DIRECTION_DBG)
 	return true
 }

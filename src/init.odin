@@ -89,7 +89,7 @@ States :: enum {
 
 game_init :: proc(game: ^Game) {
 	debug_print(INIT_GAME_DBG)
-	game.player.name = "Human"
+	game.player.name = "Player"
 	game.computer.name = "Computer"
 
 	logger, ok := init_logger()

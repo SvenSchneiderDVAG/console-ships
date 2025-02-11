@@ -2,7 +2,7 @@ package main
 
 import "core:fmt"
 
-VERSION :: "0.1.0"
+VERSION :: "0.2.0"
 
 PLACE_SHIPS_MSG :: "\nPlace your ships on the board\n"
 GAME_OVER_MSG :: "\nGame Over.\n"
@@ -19,7 +19,7 @@ main :: proc() {
 		case .PlaceShips:
 			place_ships(&game, &game.computer.my_board, true)
 			when ODIN_DEBUG {
-				display_board("Computer's Board", &game.computer.my_board)
+				display_board(BOARD_COMPUTER, &game.computer.my_board)
 			}
 			fmt.println(PLACE_SHIPS_MSG)
 			place_player_ships(&game, &game.player.my_board)
@@ -29,7 +29,7 @@ main :: proc() {
 			}
 			check_win_condition(&game, &game.player.target_board)
 		case .TurnComputer:
-			display_board("Player's Board", &game.player.my_board)
+			display_board(BOARD_PLAYER, &game.player.my_board)
 			if !process_computer_shot(&game, &game.player.my_board) {
 				game.state = .TurnPlayer
 			}
