@@ -28,7 +28,7 @@ INPUT_ATTACK :: "Enter coordinates to attack (e.g. A1, C7): "
 ALREADY_ATTACKED :: "\nYou've already attacked this position. Try again.\n"
 PLAYER_HIT :: "\nYou hit a ship!\n"
 COMPUTER_HIT :: "\nComputer hit at %c%d\n"
-PLAYER_SHIP_SUNK :: "\nOne of your Ships sunk!\n"
+PLAYER_SHIP_SUNK :: "\nOne of your ships sunk!\n"
 COMPUTER_SHIP_SUNK :: "\nComputer's ship sunk!\n"
 PLAYER_MISS :: "\nMiss...it's Computer's turn.\n"
 COMPUTER_MISS :: "\nComputer missed at %c%d ...\n"
@@ -241,7 +241,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 			// new_y := y + offsets[i][1]
 
 			// Check bounds before attempting shot
-			if is_valid_shot(board, new_x, new_y) && is_in_bounds(new_x, new_y, game) {
+			if is_valid_shot(board, new_x, new_y) {
 				x = new_x
 				y = new_y
 				game.last_hit.direction = dir
@@ -274,7 +274,7 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	// Check bounds and previous shots
-	if !is_in_bounds(x, y, game) || !is_valid_shot(board, x, y) {
+	if !is_valid_shot(board, x, y) {
 		// Return to first hit
 		game.last_hit.x = game.last_hit.first_x
 		game.last_hit.y = game.last_hit.first_y
@@ -292,11 +292,9 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	// Process shot
 	hit, sunk, invalid, ship := check_ship_hit(&game.player.my_board, game.player.ships[:], x, y)
 	if invalid {
-		// fmt.println(INVALID_INPUT)
 		time.sleep(LONG_PAUSE * time.Second)
 		// at this point we crash the game
 		panic(INVALID_INPUT)
-		// return true
 	}
 
 	if hit {
@@ -313,12 +311,11 @@ process_computer_shot :: proc(game: ^Game, board: ^Board) -> bool {
 	}
 
 	shot_result := handle_shot_result(game, board, x, y, hit, ship)
-	game.computer.turns += 1 // Increment turn counter
+	game.computer.turns += 1
 	return shot_result
 }
 
 is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
-	// First check basic bounds for all cases
 	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
 		debug_print(INVALID_SHOT_DBG, x + 'A', y + 1)
 		return false
@@ -327,6 +324,9 @@ is_in_bounds :: proc(x, y: int, game: ^Game) -> bool {
 }
 
 has_cell_been_shot :: proc(board: ^Board, x, y: int) -> bool {
+	if !is_in_bounds(x, y, nil) {
+		return true
+	}
 	cell := board.cells[y][x]
 	return cell == "X" || cell == "o" || cell == "*"
 }
@@ -364,20 +364,19 @@ check_ship_hit :: proc(
 }
 
 mark_sunken_ship :: proc(board: ^Board, ship: ^Ship) {
-	// Mark all positions of the sunken ship with '*'
 	for pos in ship.position {
 		board.cells[pos.y][pos.x] = "*"
 	}
 }
 
 is_valid_shot :: proc(board: ^Board, x, y: int) -> bool {
-	if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+	if !is_in_bounds(x, y, nil) {
 		return false
-	} else if board.cells[y][x] == "X" || board.cells[y][x] == "o" || board.cells[y][x] == "*" {
-		return false
-	} else {
-		return true
 	}
+	if has_cell_been_shot(board, x, y) {
+		return false
+	}
+	return true
 }
 
 check_ships_sunk :: proc(ships: []Ship) -> bool {
