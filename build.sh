@@ -9,7 +9,7 @@ if [ "$1" = "debug" ]; then
     odin build src/. -debug -out:bin/debug/console_ships && bin/debug/console_ships
 elif [ "$1" = "release" ]; then
     [ ! -d "bin/release" ] && mkdir -p bin/release
-    odin build src/. -o:speed -out:bin/release/console_ships && bin/release/console_ships
+    odin build src/. -o:size -out:bin/release/console_ships && bin/release/console_ships
 else
     echo "Usage: build.sh [debug|release]"
 fi
